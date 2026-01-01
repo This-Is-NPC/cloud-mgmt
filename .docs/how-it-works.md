@@ -2,7 +2,7 @@
 
 1) Scripts live anywhere under `~/Documents/omakure-scripts` (Windows: `%USERPROFILE%\Documents\omakure-scripts`) with `.bash`, `.sh`, `.ps1`, or `.py` extensions.
 2) When `SCHEMA_MODE=1`, the script prints JSON with `Name`, `Description`, and `Fields`.
-3) If a folder has `index.lua`, the TUI renders the widget in the header panel.
+3) If a folder has `index.lua`, the TUI renders the widget in the header panel. See `lua-widgets.md`.
 4) The TUI reads schemas, prompts for values, and runs the script with args.
 5) Every execution is captured in `.history/`.
 

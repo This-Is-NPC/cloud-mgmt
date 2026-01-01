@@ -51,6 +51,7 @@ omakure
 
 - Change the default scripts path: `.docs/scripts-path.md`
 - Environment documents and defaults: `.docs/environments.md`
+- Lua widgets (`index.lua`): `.docs/lua-widgets.md`
 
 ## Documentation
 
@@ -58,6 +59,7 @@ omakure
 - Workspace layout and defaults: `.docs/workspace.md`
 - Scripts path overrides: `.docs/scripts-path.md`
 - Environment documents: `.docs/environments.md`
+- Lua widgets (`index.lua`): `.docs/lua-widgets.md`
 - CLI usage: `.docs/usage.md`
 - How to create a script: `.docs/how-to-create-a-script.md`
 - How it works (overview + examples): `.docs/how-it-works.md`
