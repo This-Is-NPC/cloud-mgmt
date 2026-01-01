@@ -6,6 +6,7 @@ pub(crate) fn handle_key_event(app: &mut App, key: KeyEvent) {
     match app.screen {
         Screen::ScriptSelect => handle_list_key(app, key),
         Screen::Search => handle_search_key(app, key),
+        Screen::Environments => handle_envs_key(app, key),
         Screen::FieldInput => handle_input_key(app, key),
         Screen::History => handle_history_key(app, key),
         Screen::Running => {}
@@ -20,6 +21,11 @@ fn handle_list_key(app: &mut App, key: KeyEvent) {
             if key.modifiers.contains(KeyModifiers::CONTROL) =>
         {
             app.enter_search()
+        }
+        KeyCode::Char('e') | KeyCode::Char('E')
+            if key.modifiers.contains(KeyModifiers::ALT) =>
+        {
+            app.enter_envs()
         }
         KeyCode::Char('q') => app.should_quit = true,
         KeyCode::Esc => {
@@ -48,6 +54,11 @@ fn handle_list_key(app: &mut App, key: KeyEvent) {
 fn handle_search_key(app: &mut App, key: KeyEvent) {
     match key.code {
         KeyCode::Esc => app.screen = Screen::ScriptSelect,
+        KeyCode::Char('e') | KeyCode::Char('E')
+            if key.modifiers.contains(KeyModifiers::ALT) =>
+        {
+            app.enter_envs()
+        }
         KeyCode::Down | KeyCode::Char('j') => app.move_search_selection(1),
         KeyCode::Up | KeyCode::Char('k') => app.move_search_selection(-1),
         KeyCode::Enter => app.open_selected_search(),
@@ -94,6 +105,11 @@ fn handle_history_key(app: &mut App, key: KeyEvent) {
     match app.history_focus {
         HistoryFocus::List => match key.code {
             KeyCode::Char('q') | KeyCode::Esc => app.screen = Screen::ScriptSelect,
+            KeyCode::Char('e') | KeyCode::Char('E')
+                if key.modifiers.contains(KeyModifiers::ALT) =>
+            {
+                app.enter_envs()
+            }
             KeyCode::Down | KeyCode::Char('j') => app.move_history_selection(1),
             KeyCode::Up | KeyCode::Char('k') => app.move_history_selection(-1),
             KeyCode::Enter | KeyCode::Right => {
@@ -133,6 +149,18 @@ fn handle_run_result_key(app: &mut App, key: KeyEvent) {
         KeyCode::PageDown => app.scroll_run_output(10),
         KeyCode::PageUp => app.scroll_run_output(-10),
         KeyCode::Home => app.run_output_scroll = 0,
+        _ => {}
+    }
+}
+
+fn handle_envs_key(app: &mut App, key: KeyEvent) {
+    match key.code {
+        KeyCode::Char('q') | KeyCode::Esc => app.exit_envs(),
+        KeyCode::Char('r') | KeyCode::Char('R') => app.refresh_status(),
+        KeyCode::Down | KeyCode::Char('j') => app.move_env_selection(1),
+        KeyCode::Up | KeyCode::Char('k') => app.move_env_selection(-1),
+        KeyCode::Enter => app.activate_selected_env(),
+        KeyCode::Char('d') | KeyCode::Char('D') => app.deactivate_env(),
         _ => {}
     }
 }

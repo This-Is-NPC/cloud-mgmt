@@ -58,6 +58,7 @@ pub fn run_app(
         if app.screen == Screen::Search {
             app.refresh_search_status();
         }
+        app.poll_widget_load();
         terminal.draw(|frame| render_ui(frame, &mut app))?;
 
         if event::poll(Duration::from_millis(200))? {

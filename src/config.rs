@@ -48,6 +48,11 @@ pub fn run_config(options: ConfigOptions) -> Result<(), Box<dyn Error>> {
         "Workspace config: {}",
         workspace.config_path().display()
     );
+    println!("Environments dir: {}", workspace.envs_dir().display());
+    println!(
+        "Active environment file: {}",
+        workspace.envs_active_path().display()
+    );
 
     if let Ok(value) = env::var("OMAKURE_SCRIPTS_DIR") {
         println!("OMAKURE_SCRIPTS_DIR: {}", value);

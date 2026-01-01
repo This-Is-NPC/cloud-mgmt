@@ -1,4 +1,5 @@
 use crate::history::HistoryEntry;
+use crate::environments::{self, EnvFile, EnvironmentConfig};
 use crate::lua_widget::{self, WidgetData};
 use crate::ports::{WorkspaceEntry, WorkspaceEntryKind};
 use crate::domain::Schema;
@@ -7,11 +8,13 @@ use crate::use_cases::ScriptService;
 use crate::workspace::Workspace;
 use ratatui::widgets::{ListState, TableState};
 use std::path::{Path, PathBuf};
+use std::sync::mpsc::{self, Receiver, TryRecvError};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub(crate) enum Screen {
     ScriptSelect,
     Search,
+    Environments,
     FieldInput,
     History,
     Running,
@@ -55,6 +58,13 @@ pub(crate) struct App<'a> {
     pub(crate) entries: Vec<WorkspaceEntry>,
     pub(crate) widget: Option<WidgetData>,
     pub(crate) widget_error: Option<String>,
+    pub(crate) widget_loading: bool,
+    widget_receiver: Option<Receiver<WidgetLoadResult>>,
+    pub(crate) env_config: Option<EnvironmentConfig>,
+    pub(crate) env_error: Option<String>,
+    pub(crate) env_entries: Vec<EnvFile>,
+    pub(crate) env_state: ListState,
+    env_selection: usize,
     pub(crate) schema_preview: Option<SchemaPreview>,
     pub(crate) schema_preview_error: Option<String>,
     preview_script: Option<PathBuf>,
@@ -66,6 +76,7 @@ pub(crate) struct App<'a> {
     history_selection: usize,
     pub(crate) history_focus: HistoryFocus,
     pub(crate) screen: Screen,
+    env_return: Option<Screen>,
     search_index: SearchIndex,
     pub(crate) search_query: String,
     pub(crate) search_results: Vec<SearchResult>,
@@ -104,15 +115,21 @@ impl<'a> App<'a> {
             history_state.select(Some(0));
         }
         let current_dir = workspace.root().to_path_buf();
-        let (widget, widget_error) = load_widget_state(&current_dir);
         let search_status = search_index.status();
         let mut app = Self {
             service,
             workspace,
             current_dir,
             entries,
-            widget,
-            widget_error,
+            widget: None,
+            widget_error: None,
+            widget_loading: false,
+            widget_receiver: None,
+            env_config: None,
+            env_error: None,
+            env_entries: Vec::new(),
+            env_state: ListState::default(),
+            env_selection: 0,
             schema_preview: None,
             schema_preview_error: None,
             preview_script: None,
@@ -124,6 +141,7 @@ impl<'a> App<'a> {
             history_selection: 0,
             history_focus: HistoryFocus::List,
             screen: Screen::ScriptSelect,
+            env_return: None,
             search_index,
             search_query: String::new(),
             search_results: Vec::new(),
@@ -144,6 +162,8 @@ impl<'a> App<'a> {
             should_quit: false,
             run_output_scroll: 0,
         };
+        app.start_widget_load();
+        app.load_env_config();
         app.update_schema_preview();
         app
     }
@@ -172,6 +192,50 @@ impl<'a> App<'a> {
         self.search_status = self.search_index.status();
         self.screen = Screen::Search;
         self.refresh_search_results();
+    }
+
+    pub(crate) fn enter_envs(&mut self) {
+        self.env_return = Some(self.screen);
+        self.load_env_config();
+        self.screen = Screen::Environments;
+    }
+
+    pub(crate) fn exit_envs(&mut self) {
+        self.screen = self.env_return.unwrap_or(Screen::ScriptSelect);
+        self.env_return = None;
+    }
+
+    pub(crate) fn move_env_selection(&mut self, delta: isize) {
+        if self.env_entries.is_empty() {
+            return;
+        }
+        let len = self.env_entries.len() as isize;
+        let mut new_index = self.env_selection as isize + delta;
+        if new_index < 0 {
+            new_index = 0;
+        } else if new_index >= len {
+            new_index = len - 1;
+        }
+        self.env_selection = new_index as usize;
+        self.env_state.select(Some(self.env_selection));
+    }
+
+    pub(crate) fn activate_selected_env(&mut self) {
+        if self.env_entries.is_empty() {
+            return;
+        }
+        let name = self.env_entries[self.env_selection].name.clone();
+        match environments::set_active_env(self.workspace.envs_dir(), Some(&name)) {
+            Ok(()) => self.load_env_config(),
+            Err(err) => self.env_error = Some(err),
+        }
+    }
+
+    pub(crate) fn deactivate_env(&mut self) {
+        match environments::set_active_env(self.workspace.envs_dir(), None) {
+            Ok(()) => self.load_env_config(),
+            Err(err) => self.env_error = Some(err),
+        }
     }
 
     pub(crate) fn refresh_search_status(&mut self) {
@@ -280,13 +344,14 @@ impl<'a> App<'a> {
 
         match schema_result {
             Ok(mut schema) => {
+                self.load_env_config();
                 schema.fields.sort_by_key(|field| field.order);
                 let tags = schema.tags.clone();
                 self.schema_name = Some(schema.name);
                 self.schema_description = schema.description;
                 self.fields = schema.fields;
                 self.field_index = 0;
-                self.field_inputs = vec![String::new(); self.fields.len()];
+                self.field_inputs = self.build_field_inputs();
                 self.args.clear();
                 self.error = None;
                 self.selected_script = Some(script.clone());
@@ -395,7 +460,7 @@ impl<'a> App<'a> {
                     self.list_state.select(Some(0));
                 }
                 self.error = None;
-                self.load_widget();
+                self.start_widget_load();
                 self.update_schema_preview();
             }
             Err(err) => {
@@ -406,7 +471,8 @@ impl<'a> App<'a> {
     }
 
     pub(crate) fn refresh_status(&mut self) {
-        self.load_widget();
+        self.start_widget_load();
+        self.load_env_config();
         self.update_schema_preview();
     }
 
@@ -445,10 +511,100 @@ impl<'a> App<'a> {
             .to_string()
     }
 
-    fn load_widget(&mut self) {
-        let (widget, error) = load_widget_state(&self.current_dir);
-        self.widget = widget;
-        self.widget_error = error;
+    fn start_widget_load(&mut self) {
+        let dir = self.current_dir.clone();
+        let (tx, rx) = mpsc::channel();
+        self.widget_loading = true;
+        self.widget = None;
+        self.widget_error = None;
+        self.widget_receiver = Some(rx);
+        std::thread::spawn(move || {
+            let (widget, error) = load_widget_state(&dir);
+            let _ = tx.send(WidgetLoadResult { widget, error });
+        });
+    }
+
+    pub(crate) fn poll_widget_load(&mut self) {
+        let Some(receiver) = &self.widget_receiver else {
+            return;
+        };
+
+        match receiver.try_recv() {
+            Ok(result) => {
+                self.widget = result.widget;
+                self.widget_error = result.error;
+                self.widget_loading = false;
+                self.widget_receiver = None;
+            }
+            Err(TryRecvError::Empty) => {}
+            Err(TryRecvError::Disconnected) => {
+                self.widget_loading = false;
+                self.widget_receiver = None;
+            }
+        }
+    }
+
+    fn load_env_config(&mut self) {
+        let envs_dir = self.workspace.envs_dir();
+        let mut env_error = None;
+
+        let env_config = match environments::load_environment_config(envs_dir) {
+            Ok(config) => Some(config),
+            Err(err) => {
+                env_error = Some(err);
+                None
+            }
+        };
+
+        let env_entries = match environments::list_env_files(envs_dir) {
+            Ok(entries) => entries,
+            Err(err) => {
+                if env_error.is_none() {
+                    env_error = Some(err);
+                }
+                Vec::new()
+            }
+        };
+
+        let selected = if env_entries.is_empty() {
+            0
+        } else if let Some(active) = env_config.as_ref().and_then(|config| config.active.as_ref())
+        {
+            env_entries
+                .iter()
+                .position(|entry| entry.name == *active)
+                .unwrap_or(0)
+        } else {
+            self.env_selection.min(env_entries.len().saturating_sub(1))
+        };
+
+        self.env_entries = env_entries;
+        self.env_selection = selected;
+        if self.env_entries.is_empty() {
+            self.env_state.select(None);
+        } else {
+            self.env_state.select(Some(self.env_selection));
+        }
+
+        self.env_config = env_config;
+        self.env_error = env_error;
+    }
+
+    fn build_field_inputs(&self) -> Vec<String> {
+        let defaults = self.env_config.as_ref().map(|config| &config.defaults);
+        match defaults {
+            Some(defaults) if !defaults.is_empty() => self
+                .fields
+                .iter()
+                .map(|field| {
+                    defaults
+                        .get(&field.name.to_ascii_lowercase())
+                        .cloned()
+                        .unwrap_or_default()
+                })
+                .collect(),
+            _ => vec![String::new(); self.fields.len()],
+        }
     }
 
     fn update_schema_preview(&mut self) {
@@ -537,6 +693,11 @@ impl ExecutionStatus {
             ExecutionStatus::Failed(entry.exit_code)
         }
     }
+}
+
+struct WidgetLoadResult {
+    widget: Option<WidgetData>,
+    error: Option<String>,
 }
 
 fn load_widget_state(dir: &Path) -> (Option<WidgetData>, Option<String>) {

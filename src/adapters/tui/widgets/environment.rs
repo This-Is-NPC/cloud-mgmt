@@ -24,7 +24,18 @@ pub(crate) fn status_info(
     workspace: &Workspace,
     widget: Option<&WidgetData>,
     widget_error: Option<&str>,
+    widget_loading: bool,
 ) -> (String, Vec<Line<'static>>) {
+    if widget_loading {
+        return (
+            "Loading".to_string(),
+            vec![
+                Line::from("Loading environment..."),
+                Line::from("Please wait."),
+            ],
+        );
+    }
+
     if let Some(widget) = widget {
         let lines = widget
             .lines

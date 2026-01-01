@@ -7,14 +7,15 @@ use ratatui::Frame;
 use super::app::{App, Screen};
 use super::theme::{BRAND_GRADIENT_END, BRAND_GRADIENT_START};
 use super::widgets::{
-    environment, error as error_widget, field_input, history, loading as loading_widget, run_result,
-    running, schema, scripts, search,
+    envs, environment, error as error_widget, field_input, history, loading as loading_widget,
+    run_result, running, schema, scripts, search,
 };
 
 pub(crate) fn render_ui(frame: &mut Frame, app: &mut App) {
     match app.screen {
         Screen::ScriptSelect => render_script_select(frame, app),
         Screen::Search => search::render_search(frame, frame.size(), app),
+        Screen::Environments => envs::render_envs(frame, frame.size(), app),
         Screen::FieldInput => field_input::render_field_input(frame, frame.size(), app),
         Screen::History => history::render_history(frame, frame.size(), app),
         Screen::Running => running::render_running(frame, frame.size(), app),
@@ -32,6 +33,7 @@ fn render_script_select(frame: &mut Frame, app: &mut App) {
         &app.workspace,
         app.widget.as_ref(),
         app.widget_error.as_deref(),
+        app.widget_loading,
     );
     let info_height = info_lines.len() as u16 + 2;
 
@@ -96,18 +98,18 @@ fn render_script_select(frame: &mut Frame, app: &mut App) {
     }
 
     let mut footer_text = if app.entries.is_empty() {
-        "Folder is empty. r refresh, h history, Ctrl+S search, q quit".to_string()
+        "Folder is empty. r refresh, h history, Ctrl+S search, Alt+E envs, q quit".to_string()
     } else {
-        "Up/Down move, Enter open/run, r refresh, h history, Ctrl+S search, q quit".to_string()
+        "Up/Down move, Enter open/run, r refresh, h history, Ctrl+S search, Alt+E envs, q quit".to_string()
     };
     if app.current_dir != app.workspace.root() {
         if app.entries.is_empty() {
             footer_text =
-                "Folder is empty. Backspace up, r refresh, h history, Ctrl+S search, q quit"
+                "Folder is empty. Backspace up, r refresh, h history, Ctrl+S search, Alt+E envs, q quit"
                     .to_string();
         } else {
             footer_text =
-                "Up/Down move, Enter open/run, Backspace up, r refresh, h history, Ctrl+S search, q quit"
+                "Up/Down move, Enter open/run, Backspace up, r refresh, h history, Ctrl+S search, Alt+E envs, q quit"
                     .to_string();
         }
     }

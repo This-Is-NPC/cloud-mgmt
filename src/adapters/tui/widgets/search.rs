@@ -108,9 +108,11 @@ fn render_search_schema(frame: &mut Frame, area: Rect, app: &App) {
 
 fn render_search_footer(frame: &mut Frame, area: Rect, app: &App) {
     let hint = match &app.search_status {
-        SearchStatus::Indexing => "Type to search, Enter open, Esc back. Indexing in background.",
-        SearchStatus::Error(_) => "Type to search, Enter open, Esc back. Index error.",
-        _ => "Type to search, Enter open, Esc back",
+        SearchStatus::Indexing => {
+            "Type to search, Enter open, Alt+E envs, Esc back. Indexing in background."
+        }
+        SearchStatus::Error(_) => "Type to search, Enter open, Alt+E envs, Esc back. Index error.",
+        _ => "Type to search, Enter open, Alt+E envs, Esc back",
     };
     let footer = Paragraph::new(hint).style(Style::default().fg(Color::Gray));
     frame.render_widget(footer, area);

@@ -24,7 +24,7 @@ pub(crate) fn render_history(frame: &mut Frame, area: Rect, app: &mut App) {
     render_history_output(frame, body_chunks[1], app);
 
     let footer_text = match app.history_focus {
-        HistoryFocus::List => "Up/Down to select, Enter to view output, Esc/q to go back",
+        HistoryFocus::List => "Up/Down to select, Enter to view output, Alt+E envs, Esc/q to go back",
         HistoryFocus::Output => "Up/Down to scroll, PgUp/PgDn, Esc to return, q to go back",
     };
     let footer = Paragraph::new(footer_text).style(Style::default().fg(Color::Gray));

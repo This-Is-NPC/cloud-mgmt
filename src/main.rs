@@ -3,6 +3,7 @@ mod completion;
 mod config;
 mod domain;
 mod doctor;
+mod environments;
 mod history;
 mod init;
 mod list;

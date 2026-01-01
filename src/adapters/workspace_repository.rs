@@ -127,10 +127,18 @@ fn collect_scripts(dir: &Path, scripts: &mut Vec<PathBuf>) -> io::Result<()> {
 }
 
 fn should_skip_dir(path: &Path) -> bool {
-    matches!(
-        path.file_name().and_then(|name| name.to_str()),
-        Some(".history") | Some(".git")
-    )
+    let name = path.file_name().and_then(|name| name.to_str());
+    if matches!(name, Some(".history") | Some(".git")) {
+        return true;
+    }
+    if matches!(name, Some("envs")) {
+        if let Some(parent) = path.parent().and_then(|parent| parent.file_name()) {
+            if parent == ".omaken" {
+                return true;
+            }
+        }
+    }
+    false
 }
 
 fn entry_name(path: &Path) -> String {

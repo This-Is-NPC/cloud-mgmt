@@ -7,6 +7,8 @@ pub struct Workspace {
     omaken_dir: PathBuf,
     history_dir: PathBuf,
     config_path: PathBuf,
+    envs_dir: PathBuf,
+    envs_active_path: PathBuf,
 }
 
 impl Workspace {
@@ -14,11 +16,15 @@ impl Workspace {
         let omaken_dir = root.join(".omaken");
         let history_dir = root.join(".history");
         let config_path = root.join("omakure.toml");
+        let envs_dir = omaken_dir.join("envs");
+        let envs_active_path = envs_dir.join("active");
         Self {
             root,
             omaken_dir,
             history_dir,
             config_path,
+            envs_dir,
+            envs_active_path,
         }
     }
 
@@ -42,10 +48,19 @@ impl Workspace {
         &self.config_path
     }
 
+    pub fn envs_dir(&self) -> &Path {
+        &self.envs_dir
+    }
+
+    pub fn envs_active_path(&self) -> &Path {
+        &self.envs_active_path
+    }
+
     pub fn ensure_layout(&self) -> io::Result<()> {
         fs::create_dir_all(&self.root)?;
         fs::create_dir_all(&self.omaken_dir)?;
         fs::create_dir_all(&self.history_dir)?;
+        fs::create_dir_all(&self.envs_dir)?;
         if !self.config_path.exists() {
             fs::write(&self.config_path, default_config())?;
         }
