@@ -8,5 +8,7 @@
 .idea/
 .vscode/
 scripts/.history/search-index.sqlite*
+scripts/.history/*
+!scripts/.history/.gitkeep
 scripts/.omaken/envs/*
 !scripts/.omaken/envs/env_template.conf
