@@ -2,11 +2,9 @@ use ratatui::layout::Rect;
 use ratatui::text::Line;
 use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
 use ratatui::Frame;
+use crate::app_meta;
 use crate::lua_widget::WidgetData;
 use crate::workspace::Workspace;
-
-const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
-const REPO_URL: &str = "https://github.com/This-Is-NPC/omakure";
 
 pub(crate) fn render_environment(
     frame: &mut Frame,
@@ -60,7 +58,12 @@ pub(crate) fn status_info(
         "Root: {}",
         workspace.root().display()
     )));
-    lines.push(Line::from(format!("Version: v{}", APP_VERSION)));
-    lines.push(Line::from(format!("Repo: {}", REPO_URL)));
+    lines.push(Line::from(format!("Version: v{}", app_meta::APP_VERSION)));
+    let repo = if app_meta::REPO_URL.is_empty() {
+        "<unknown>"
+    } else {
+        app_meta::REPO_URL
+    };
+    lines.push(Line::from(format!("Repo: {}", repo)));
     ("Workspace".to_string(), lines)
 }

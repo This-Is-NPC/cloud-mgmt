@@ -68,9 +68,9 @@ impl Workspace {
     }
 }
 
-fn default_config() -> &'static str {
-    r#"# Omakure workspace configuration
-[workspace]
-version = 1
-"#
+fn default_config() -> String {
+    format!(
+        "# Omakure workspace configuration\n[workspace]\nversion = \"{}\"\n",
+        crate::app_meta::APP_VERSION
+    )
 }

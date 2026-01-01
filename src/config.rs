@@ -1,6 +1,7 @@
 use std::env;
 use std::error::Error;
 use std::path::PathBuf;
+use crate::app_meta;
 use crate::workspace::Workspace;
 
 pub struct ConfigOptions {
@@ -39,7 +40,7 @@ pub fn parse_config_args(
 pub fn run_config(options: ConfigOptions) -> Result<(), Box<dyn Error>> {
     let exe = env::current_exe()?;
     let workspace = Workspace::new(options.scripts_dir.clone());
-    println!("Version: {}", env!("CARGO_PKG_VERSION"));
+    println!("Version: {}", app_meta::APP_VERSION);
     println!("Binary: {}", exe.display());
     println!("Workspace root: {}", workspace.root().display());
     println!("Omaken dir: {}", workspace.omaken_dir().display());

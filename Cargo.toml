@@ -1,6 +1,7 @@
 [package]
 name = "omakure"
-version = "0.1.0"
+version = "0.1.1"
+repository = "https://github.com/This-Is-NPC/omakure"
 edition = "2021"
 
 [[bin]]

@@ -1,4 +1,5 @@
 mod adapters;
+mod app_meta;
 mod completion;
 mod config;
 mod domain;
