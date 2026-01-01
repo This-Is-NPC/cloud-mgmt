@@ -6,6 +6,7 @@ use std::error::Error;
 pub struct Schema {
     pub name: String,
     pub description: Option<String>,
+    pub tags: Option<Vec<String>>,
     pub fields: Vec<Field>,
 }
 

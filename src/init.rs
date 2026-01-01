@@ -152,6 +152,7 @@ if [[ \"${{SCHEMA_MODE:-}}\" == \"1\" ]]; then\n\
 {{\n\
   \"Name\": \"{script_id}\",\n\
   \"Description\": \"Describe what this script does.\",\n\
+  \"Tags\": [],\n\
   \"Fields\": [\n\
     {{\n\
       \"Name\": \"target\",\n\
@@ -211,6 +212,7 @@ if ($env:SCHEMA_MODE -eq \"1\") {{\n\
 {{\n\
   \"Name\": \"{script_id}\",\n\
   \"Description\": \"Describe what this script does.\",\n\
+  \"Tags\": [],\n\
   \"Fields\": [\n\
     {{\n\
       \"Name\": \"target\",\n\
@@ -261,6 +263,7 @@ if os.environ.get(\"SCHEMA_MODE\") == \"1\":\n\
     print(json.dumps({{\n\
         \"Name\": \"{script_id}\",\n\
         \"Description\": \"Describe what this script does.\",\n\
+        \"Tags\": [],\n\
         \"Fields\": [\n\
             {{\n\
                 \"Name\": \"target\",\n\

@@ -27,6 +27,7 @@ pub(crate) enum HistoryFocus {
 pub(crate) struct SchemaPreview {
     pub(crate) name: String,
     pub(crate) description: Option<String>,
+    pub(crate) tags: Vec<String>,
     pub(crate) fields: Vec<SchemaFieldPreview>,
 }
 
@@ -209,6 +210,7 @@ impl<'a> App<'a> {
         match schema_result {
             Ok(mut schema) => {
                 schema.fields.sort_by_key(|field| field.order);
+                let tags = schema.tags.clone();
                 self.schema_name = Some(schema.name);
                 self.schema_description = schema.description;
                 self.fields = schema.fields;
@@ -220,6 +222,7 @@ impl<'a> App<'a> {
                 self.schema_cache = Some((script.clone(), Schema {
                     name: self.schema_name.clone().unwrap_or_default(),
                     description: self.schema_description.clone(),
+                    tags,
                     fields: self.fields.clone(),
                 }));
                 if self.fields.is_empty() {
@@ -436,6 +439,7 @@ fn load_widget_state(dir: &Path) -> (Option<WidgetData>, Option<String>) {
 }
 
 fn schema_to_preview(schema: &Schema) -> SchemaPreview {
+    let tags = schema.tags.clone().unwrap_or_default();
     let fields = schema
         .fields
         .iter()
@@ -449,6 +453,7 @@ fn schema_to_preview(schema: &Schema) -> SchemaPreview {
     SchemaPreview {
         name: schema.name.clone(),
         description: schema.description.clone(),
+        tags,
         fields,
     }
 }

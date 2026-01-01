@@ -48,6 +48,9 @@ fn build_lines(preview: Option<&SchemaPreview>, error: Option<&str>) -> Vec<Line
             lines.push(Line::from(format!("Description: {}", description.trim())));
         }
     }
+    if !preview.tags.is_empty() {
+        lines.push(Line::from(format!("Tags: {}", preview.tags.join(", "))));
+    }
     lines.push(Line::from(""));
     if preview.fields.is_empty() {
         lines.push(Line::from(Span::styled(
