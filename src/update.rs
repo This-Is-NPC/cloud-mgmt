@@ -307,8 +307,8 @@ fn install_binary_windows(new_bin: &Path, target: &Path) -> Result<(), Box<dyn E
     fs::copy(new_bin, &new_path)?;
 
     let script = format!(
-        "$pid = {pid}; \
-         try {{ $p = Get-Process -Id $pid -ErrorAction SilentlyContinue; if ($p) {{ $p.WaitForExit(); }} }} catch {{}}; \
+        "$processId = {pid}; \
+         try {{ $p = Get-Process -Id $processId -ErrorAction SilentlyContinue; if ($p) {{ $p.WaitForExit(); }} }} catch {{}}; \
          if (Test-Path {target}) {{ Move-Item -Force {target} {backup}; }} \
          Move-Item -Force {new_path} {target}; \
          if (Test-Path {backup}) {{ Remove-Item -Force {backup}; }}",

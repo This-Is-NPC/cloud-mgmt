@@ -80,8 +80,8 @@ fn uninstall_unix(exe: &Path) -> Result<(), Box<dyn Error>> {
 
 fn uninstall_windows(exe: &Path) -> Result<(), Box<dyn Error>> {
     let script = format!(
-        "$pid = {pid}; \
-         try {{ $p = Get-Process -Id $pid -ErrorAction SilentlyContinue; if ($p) {{ $p.WaitForExit(); }} }} catch {{}}; \
+        "$processId = {pid}; \
+         try {{ $p = Get-Process -Id $processId -ErrorAction SilentlyContinue; if ($p) {{ $p.WaitForExit(); }} }} catch {{}}; \
          if (Test-Path {target}) {{ Remove-Item -Force {target}; }}",
         pid = std::process::id(),
         target = ps_quote(&exe.display().to_string())
