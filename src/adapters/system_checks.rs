@@ -3,9 +3,14 @@ use std::process::Command;
 
 use crate::runtime::{powershell_program, python_program};
 
-#[cfg(windows)]
-pub(crate) fn ensure_git_installed() -> Result<(), Box<dyn Error>> {
-    match Command::new("git").arg("--version").output() {
+/// Check that a command is available and runs successfully.
+fn ensure_command(
+    program: &str,
+    args: &[&str],
+    not_found_hint: &str,
+    failed_hint: &str,
+) -> Result<(), Box<dyn Error>> {
+    match Command::new(program).args(args).output() {
         Ok(output) => {
             if output.status.success() {
                 Ok(())
@@ -13,170 +18,87 @@ pub(crate) fn ensure_git_installed() -> Result<(), Box<dyn Error>> {
                 let stderr = String::from_utf8_lossy(&output.stderr);
                 let message = stderr.trim();
                 if message.is_empty() {
-                    Err("Git found, but `git --version` failed".into())
+                    Err(failed_hint.into())
                 } else {
-                    Err(format!("Git found, but `git --version` failed: {}", message).into())
+                    Err(format!("{}: {}", failed_hint, message).into())
                 }
             }
         }
-        Err(err) => Err(format!(
-            "Git not found in PATH. Install Git for Windows (includes bash): {}",
-            err
-        )
-        .into()),
-    }
-}
-
-#[cfg(not(windows))]
-pub(crate) fn ensure_git_installed() -> Result<(), Box<dyn Error>> {
-    match Command::new("git").arg("--version").output() {
-        Ok(output) => {
-            if output.status.success() {
-                Ok(())
-            } else {
-                let stderr = String::from_utf8_lossy(&output.stderr);
-                let message = stderr.trim();
-                if message.is_empty() {
-                    Err("Git found, but `git --version` failed".into())
-                } else {
-                    Err(format!("Git found, but `git --version` failed: {}", message).into())
-                }
-            }
-        }
-        Err(err) => Err(format!(
-            "Git not found in PATH. Install Git and ensure it is in PATH: {}",
-            err
-        )
-        .into()),
+        Err(err) => Err(format!("{}: {}", not_found_hint, err).into()),
     }
 }
 
 #[cfg(windows)]
+pub(crate) fn ensure_git_installed() -> Result<(), Box<dyn Error>> {
+    ensure_command(
+        "git",
+        &["--version"],
+        "Git not found in PATH. Install Git for Windows (includes bash)",
+        "Git found, but `git --version` failed",
+    )
+}
+
+#[cfg(not(windows))]
+pub(crate) fn ensure_git_installed() -> Result<(), Box<dyn Error>> {
+    ensure_command(
+        "git",
+        &["--version"],
+        "Git not found in PATH. Install Git and ensure it is in PATH",
+        "Git found, but `git --version` failed",
+    )
+}
+
+#[cfg(windows)]
 pub(crate) fn ensure_bash_installed() -> Result<(), Box<dyn Error>> {
-    match Command::new("bash").arg("--version").output() {
-        Ok(output) => {
-            if output.status.success() {
-                Ok(())
-            } else {
-                let stderr = String::from_utf8_lossy(&output.stderr);
-                let message = stderr.trim();
-                if message.is_empty() {
-                    Err("Bash found, but `bash --version` failed".into())
-                } else {
-                    Err(format!("Bash found, but `bash --version` failed: {}", message).into())
-                }
-            }
-        }
-        Err(err) => Err(format!(
-            "Bash not found in PATH. Install Git for Windows or add bash.exe to PATH: {}",
-            err
-        )
-        .into()),
-    }
+    ensure_command(
+        "bash",
+        &["--version"],
+        "Bash not found in PATH. Install Git for Windows or add bash.exe to PATH",
+        "Bash found, but `bash --version` failed",
+    )
 }
 
 #[cfg(not(windows))]
 pub(crate) fn ensure_bash_installed() -> Result<(), Box<dyn Error>> {
-    match Command::new("bash").arg("--version").output() {
-        Ok(output) => {
-            if output.status.success() {
-                Ok(())
-            } else {
-                let stderr = String::from_utf8_lossy(&output.stderr);
-                let message = stderr.trim();
-                if message.is_empty() {
-                    Err("Bash found, but `bash --version` failed".into())
-                } else {
-                    Err(format!("Bash found, but `bash --version` failed: {}", message).into())
-                }
-            }
-        }
-        Err(err) => Err(format!(
-            "Bash not found in PATH. Install bash and ensure it is in PATH: {}",
-            err
-        )
-        .into()),
-    }
+    ensure_command(
+        "bash",
+        &["--version"],
+        "Bash not found in PATH. Install bash and ensure it is in PATH",
+        "Bash found, but `bash --version` failed",
+    )
 }
 
 pub(crate) fn ensure_jq_installed() -> Result<(), Box<dyn Error>> {
-    match Command::new("jq").arg("--version").output() {
-        Ok(output) => {
-            if output.status.success() {
-                Ok(())
-            } else {
-                let stderr = String::from_utf8_lossy(&output.stderr);
-                let message = stderr.trim();
-                if message.is_empty() {
-                    Err("jq found, but `jq --version` failed".into())
-                } else {
-                    Err(format!("jq found, but `jq --version` failed: {}", message).into())
-                }
-            }
-        }
-        Err(err) => Err(format!(
-            "jq not found in PATH. Install jq and ensure it is in PATH: {}",
-            err
-        )
-        .into()),
-    }
+    ensure_command(
+        "jq",
+        &["--version"],
+        "jq not found in PATH. Install jq and ensure it is in PATH",
+        "jq found, but `jq --version` failed",
+    )
 }
 
 pub(crate) fn ensure_powershell_installed() -> Result<(), Box<dyn Error>> {
     let program = powershell_program();
-    match Command::new(program)
-        .args(["-NoProfile", "-Command", "$PSVersionTable.PSVersion"])
-        .output()
-    {
-        Ok(output) => {
-            if output.status.success() {
-                Ok(())
-            } else {
-                let stderr = String::from_utf8_lossy(&output.stderr);
-                let message = stderr.trim();
-                if message.is_empty() {
-                    Err(format!("{} found, but PowerShell check failed", program).into())
-                } else {
-                    Err(format!(
-                        "{} found, but PowerShell check failed: {}",
-                        program, message
-                    )
-                    .into())
-                }
-            }
-        }
-        Err(err) => Err(format!(
-            "{} not found in PATH. Install PowerShell and ensure it is in PATH: {}",
-            program, err
-        )
-        .into()),
-    }
+    ensure_command(
+        program,
+        &["-NoProfile", "-Command", "$PSVersionTable.PSVersion"],
+        &format!(
+            "{} not found in PATH. Install PowerShell and ensure it is in PATH",
+            program
+        ),
+        &format!("{} found, but PowerShell check failed", program),
+    )
 }
 
 pub(crate) fn ensure_python_installed() -> Result<(), Box<dyn Error>> {
     let program = python_program();
-    match Command::new(program).arg("--version").output() {
-        Ok(output) => {
-            if output.status.success() {
-                Ok(())
-            } else {
-                let stderr = String::from_utf8_lossy(&output.stderr);
-                let message = stderr.trim();
-                if message.is_empty() {
-                    Err(format!("{} found, but `--version` failed", program).into())
-                } else {
-                    Err(format!(
-                        "{} found, but `--version` failed: {}",
-                        program, message
-                    )
-                    .into())
-                }
-            }
-        }
-        Err(err) => Err(format!(
-            "{} not found in PATH. Install Python and ensure it is in PATH: {}",
-            program, err
-        )
-        .into()),
-    }
+    ensure_command(
+        program,
+        &["--version"],
+        &format!(
+            "{} not found in PATH. Install Python and ensure it is in PATH",
+            program
+        ),
+        &format!("{} found, but `--version` failed", program),
+    )
 }

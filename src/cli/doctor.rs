@@ -6,35 +6,31 @@ use crate::workspace::Workspace;
 use std::error::Error;
 use std::path::PathBuf;
 
+use super::ENV_HELP;
+
 pub struct DoctorOptions {
     pub scripts_dir: PathBuf,
 }
 
-pub fn print_doctor_help() {
+pub fn print_help() {
     println!(
         "Usage: omakure doctor\n\n\
 Aliases:\n\
   check\n\n\
 Notes:\n\
   Validates runtimes and workspace paths (PowerShell/Python are optional).\n\n\
-Environment:\n\
-  OMAKURE_SCRIPTS_DIR  Scripts directory override\n\
-  OVERTURE_SCRIPTS_DIR  Legacy scripts directory override\n\
-  CLOUD_MGMT_SCRIPTS_DIR  Legacy scripts directory override"
+{ENV_HELP}"
     );
 }
 
-pub fn parse_doctor_args(
-    args: &[String],
-    scripts_dir: PathBuf,
-) -> Result<DoctorOptions, Box<dyn Error>> {
+pub fn parse_args(args: &[String], scripts_dir: PathBuf) -> Result<DoctorOptions, Box<dyn Error>> {
     if !args.is_empty() {
         return Err("doctor does not accept arguments".into());
     }
     Ok(DoctorOptions { scripts_dir })
 }
 
-pub fn run_doctor(options: DoctorOptions) -> Result<(), Box<dyn Error>> {
+pub fn run(options: DoctorOptions) -> Result<(), Box<dyn Error>> {
     let mut ok = true;
     let workspace = Workspace::new(options.scripts_dir);
 

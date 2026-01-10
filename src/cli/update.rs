@@ -1,3 +1,4 @@
+use crate::util::{ps_quote, set_executable_permissions, TempDirGuard};
 use serde_json::Value;
 use std::env;
 use std::error::Error;
@@ -5,6 +6,8 @@ use std::ffi::OsStr;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+
+use super::ENV_HELP_WITH_REPO;
 
 const DEFAULT_REPO: &str = "This-Is-NPC/omakure";
 
@@ -14,28 +17,17 @@ pub struct UpdateOptions {
     pub scripts_dir: PathBuf,
 }
 
-pub fn print_update_help() {
+pub fn print_help() {
     println!(
         "Usage: omakure update [--repo owner/name] [--version vX.Y.Z]\n\n\
 Options:\n\
-  --repo     GitHub repository (default: This-Is-NPC/omakure)\n\
+  --repo     GitHub repository (default: {DEFAULT_REPO})\n\
   --version  Release tag (defaults to latest)\n\n\
-Environment:\n\
-  REPO     GitHub repository (same as --repo)\n\
-  VERSION  Release tag (same as --version)\n\
-  OMAKURE_REPO  Override repo without clobbering REPO\n\
-  OMAKURE_SCRIPTS_DIR  Scripts directory override\n\
-  OVERTURE_REPO  Legacy repo override\n\
-  OVERTURE_SCRIPTS_DIR  Legacy scripts directory override\n\
-  CLOUD_MGMT_REPO  Legacy repo override\n\
-  CLOUD_MGMT_SCRIPTS_DIR  Legacy scripts directory override"
+{ENV_HELP_WITH_REPO}"
     );
 }
 
-pub fn parse_update_args(
-    args: &[String],
-    scripts_dir: PathBuf,
-) -> Result<UpdateOptions, Box<dyn Error>> {
+pub fn parse_args(args: &[String], scripts_dir: PathBuf) -> Result<UpdateOptions, Box<dyn Error>> {
     let repo = env::var("OMAKURE_REPO")
         .or_else(|_| env::var("OVERTURE_REPO"))
         .or_else(|_| env::var("CLOUD_MGMT_REPO"))
@@ -69,7 +61,7 @@ pub fn parse_update_args(
     Ok(opts)
 }
 
-pub fn run_update(options: UpdateOptions) -> Result<(), Box<dyn Error>> {
+pub fn run(options: UpdateOptions) -> Result<(), Box<dyn Error>> {
     let repo = options.repo;
     let version = match options.version {
         Some(version) => normalize_version_tag(&version),
@@ -439,38 +431,4 @@ fn find_dir_named(root: &Path, name: &str) -> Option<PathBuf> {
 
 fn command_exists(cmd: &str) -> bool {
     Command::new(cmd).arg("--version").output().is_ok()
-}
-
-#[cfg(not(windows))]
-fn set_executable_permissions(path: &Path) -> Result<(), Box<dyn Error>> {
-    use std::os::unix::fs::PermissionsExt;
-    let mut perms = fs::metadata(path)?.permissions();
-    perms.set_mode(0o755);
-    fs::set_permissions(path, perms)?;
-    Ok(())
-}
-
-#[cfg(windows)]
-fn set_executable_permissions(_path: &Path) -> Result<(), Box<dyn Error>> {
-    Ok(())
-}
-
-fn ps_quote(input: &str) -> String {
-    format!("'{}'", input.replace('\'', "''"))
-}
-
-struct TempDirGuard {
-    path: PathBuf,
-}
-
-impl TempDirGuard {
-    fn new(path: PathBuf) -> Self {
-        Self { path }
-    }
-}
-
-impl Drop for TempDirGuard {
-    fn drop(&mut self) {
-        let _ = fs::remove_dir_all(&self.path);
-    }
 }

@@ -83,3 +83,171 @@ fn parse_bool(input: &str) -> Option<bool> {
         _ => None,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_field(name: &str, kind: &str, required: bool) -> Field {
+        Field {
+            name: name.to_string(),
+            prompt: None,
+            kind: kind.to_string(),
+            order: 1,
+            required: Some(required),
+            default: None,
+            choices: None,
+            arg: None,
+        }
+    }
+
+    #[test]
+    fn test_parse_schema_valid() {
+        let output = r#"Some output before
+{
+  "Name": "test_script",
+  "Description": "A test script",
+  "Fields": []
+}
+Some output after"#;
+        let schema = parse_schema(output).unwrap();
+        assert_eq!(schema.name, "test_script");
+        assert_eq!(schema.description, Some("A test script".to_string()));
+        assert!(schema.fields.is_empty());
+    }
+
+    #[test]
+    fn test_parse_schema_with_fields() {
+        let output = r#"{
+  "Name": "my_script",
+  "Fields": [
+    {
+      "Name": "target",
+      "Type": "string",
+      "Order": 1,
+      "Required": true
+    }
+  ]
+}"#;
+        let schema = parse_schema(output).unwrap();
+        assert_eq!(schema.name, "my_script");
+        assert_eq!(schema.fields.len(), 1);
+        assert_eq!(schema.fields[0].name, "target");
+        assert_eq!(schema.fields[0].required, Some(true));
+    }
+
+    #[test]
+    fn test_parse_schema_not_found() {
+        let output = "No JSON here";
+        let result = parse_schema(output);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_normalize_input_string() {
+        let field = make_field("name", "string", false);
+        let result = normalize_input(&field, "  hello world  ").unwrap();
+        assert_eq!(result, Some("hello world".to_string()));
+    }
+
+    #[test]
+    fn test_normalize_input_empty_optional() {
+        let field = make_field("name", "string", false);
+        let result = normalize_input(&field, "").unwrap();
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_normalize_input_empty_required() {
+        let field = make_field("name", "string", true);
+        let result = normalize_input(&field, "");
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "Value required");
+    }
+
+    #[test]
+    fn test_normalize_input_with_default() {
+        let mut field = make_field("name", "string", false);
+        field.default = Some("default_value".to_string());
+        let result = normalize_input(&field, "").unwrap();
+        assert_eq!(result, Some("default_value".to_string()));
+    }
+
+    #[test]
+    fn test_normalize_input_number_valid() {
+        let field = make_field("count", "number", false);
+        let result = normalize_input(&field, "42").unwrap();
+        assert_eq!(result, Some("42".to_string()));
+
+        let result = normalize_input(&field, "3.14").unwrap();
+        assert_eq!(result, Some("3.14".to_string()));
+    }
+
+    #[test]
+    fn test_normalize_input_number_invalid() {
+        let field = make_field("count", "number", false);
+        let result = normalize_input(&field, "not a number");
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "Enter a valid number");
+    }
+
+    #[test]
+    fn test_normalize_input_bool_valid() {
+        let field = make_field("flag", "bool", false);
+
+        assert_eq!(
+            normalize_input(&field, "true").unwrap(),
+            Some("true".to_string())
+        );
+        assert_eq!(
+            normalize_input(&field, "yes").unwrap(),
+            Some("true".to_string())
+        );
+        assert_eq!(
+            normalize_input(&field, "Y").unwrap(),
+            Some("true".to_string())
+        );
+        assert_eq!(
+            normalize_input(&field, "1").unwrap(),
+            Some("true".to_string())
+        );
+
+        assert_eq!(
+            normalize_input(&field, "false").unwrap(),
+            Some("false".to_string())
+        );
+        assert_eq!(
+            normalize_input(&field, "no").unwrap(),
+            Some("false".to_string())
+        );
+        assert_eq!(
+            normalize_input(&field, "N").unwrap(),
+            Some("false".to_string())
+        );
+        assert_eq!(
+            normalize_input(&field, "0").unwrap(),
+            Some("false".to_string())
+        );
+    }
+
+    #[test]
+    fn test_normalize_input_bool_invalid() {
+        let field = make_field("flag", "bool", false);
+        let result = normalize_input(&field, "maybe");
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "Enter true/false (or yes/no)");
+    }
+
+    #[test]
+    fn test_normalize_input_with_choices() {
+        let mut field = make_field("env", "string", false);
+        field.choices = Some(vec!["dev".to_string(), "prod".to_string()]);
+
+        let result = normalize_input(&field, "dev").unwrap();
+        assert_eq!(result, Some("dev".to_string()));
+
+        let result = normalize_input(&field, "staging");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Allowed values"));
+    }
+}

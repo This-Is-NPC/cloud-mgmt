@@ -1,27 +1,20 @@
 mod adapters;
 mod app_meta;
-mod completion;
-mod config;
+mod cli;
 mod domain;
-mod doctor;
-mod environments;
+mod error;
 mod history;
-mod init;
-mod list;
 mod lua_widget;
-mod omaken;
-mod run;
-mod uninstall;
 mod ports;
-mod update;
-mod use_cases;
 mod runtime;
-mod workspace;
 mod search_index;
+mod use_cases;
+mod util;
+mod workspace;
 
 use adapters::script_runner::MultiScriptRunner;
-use adapters::workspace_repository::FsWorkspaceRepository;
 use adapters::tui;
+use adapters::workspace_repository::FsWorkspaceRepository;
 use std::env;
 use std::error::Error;
 use std::path::PathBuf;
@@ -43,9 +36,7 @@ fn scripts_dir_for(name: &str) -> PathBuf {
     #[cfg(not(windows))]
     {
         if let Ok(home) = env::var("HOME") {
-            return PathBuf::from(home)
-                .join("Documents")
-                .join(name);
+            return PathBuf::from(home).join("Documents").join(name);
         }
     }
 
@@ -166,18 +157,18 @@ fn print_help() {
     println!(
         "Usage: omakure [command]\n\n\
 Commands:\n\
-  update    Update omakure from GitHub Releases\n\
-  uninstall Remove the omakure binary\n\
-  doctor    Check runtime dependencies and workspace\n\
-  check     Alias for doctor\n\
-  list      List Omaken flavors\n\
-  install   Install an Omaken flavor\n\
-  scripts   List available scripts\n\
-  run       Run a script without the TUI\n\
-  init      Create a new script template\n\
-  config    Show resolved paths and env\n\
-  env       Alias for config\n\
-  completion Generate shell completion\n\
+  update      Update omakure from GitHub Releases\n\
+  uninstall   Remove the omakure binary\n\
+  doctor      Check runtime dependencies and workspace\n\
+  check       Alias for doctor\n\
+  list        List Omaken flavors\n\
+  install     Install an Omaken flavor\n\
+  scripts     List available scripts\n\
+  run         Run a script without the TUI\n\
+  init        Create a new script template\n\
+  config      Show resolved paths and env\n\
+  env         Alias for config\n\
+  completion  Generate shell completion\n\
 \n\
 Options:\n\
   -h, --help     Show this help\n\
@@ -187,133 +178,100 @@ Options:\n\
 
 fn main() -> Result<(), Box<dyn Error>> {
     let mut args = env::args().skip(1);
+    let scripts_dir = scripts_dir();
+
     if let Some(command) = args.next() {
+        let remaining: Vec<String> = args.collect();
+
         match command.as_str() {
             "update" => {
-                let update_args: Vec<String> = args.collect();
-                if update_args
-                    .iter()
-                    .any(|arg| arg == "-h" || arg == "--help")
-                {
-                    update::print_update_help();
+                if cli::wants_help(&remaining) {
+                    cli::update::print_help();
                     return Ok(());
                 }
-                let options = update::parse_update_args(&update_args, scripts_dir())?;
-                update::run_update(options)?;
+                let options = cli::update::parse_args(&remaining, scripts_dir)?;
+                cli::update::run(options)?;
                 return Ok(());
             }
             "uninstall" => {
-                let uninstall_args: Vec<String> = args.collect();
-                if uninstall_args
-                    .iter()
-                    .any(|arg| arg == "-h" || arg == "--help")
-                {
-                    uninstall::print_uninstall_help();
+                if cli::wants_help(&remaining) {
+                    cli::uninstall::print_help();
                     return Ok(());
                 }
-                let options = uninstall::parse_uninstall_args(&uninstall_args, scripts_dir())?;
-                uninstall::run_uninstall(options)?;
+                let options = cli::uninstall::parse_args(&remaining, scripts_dir)?;
+                cli::uninstall::run(options)?;
                 return Ok(());
             }
             "doctor" | "check" => {
-                let doctor_args: Vec<String> = args.collect();
-                if doctor_args
-                    .iter()
-                    .any(|arg| arg == "-h" || arg == "--help")
-                {
-                    doctor::print_doctor_help();
+                if cli::wants_help(&remaining) {
+                    cli::doctor::print_help();
                     return Ok(());
                 }
-                let options = doctor::parse_doctor_args(&doctor_args, scripts_dir())?;
-                doctor::run_doctor(options)?;
+                let options = cli::doctor::parse_args(&remaining, scripts_dir)?;
+                cli::doctor::run(options)?;
                 return Ok(());
             }
             "list" => {
-                let list_args: Vec<String> = args.collect();
-                if list_args
-                    .iter()
-                    .any(|arg| arg == "-h" || arg == "--help")
-                {
-                    omaken::print_list_help();
+                if cli::wants_help(&remaining) {
+                    cli::omaken::print_list_help();
                     return Ok(());
                 }
-                let options = omaken::parse_list_args(&list_args, scripts_dir())?;
-                omaken::run_list(options)?;
+                let options = cli::omaken::parse_list_args(&remaining, scripts_dir)?;
+                cli::omaken::run_list(options)?;
                 return Ok(());
             }
             "install" => {
-                let install_args: Vec<String> = args.collect();
-                if install_args
-                    .iter()
-                    .any(|arg| arg == "-h" || arg == "--help")
-                {
-                    omaken::print_install_help();
+                if cli::wants_help(&remaining) {
+                    cli::omaken::print_install_help();
                     return Ok(());
                 }
-                let options = omaken::parse_install_args(&install_args, scripts_dir())?;
-                omaken::run_install(options)?;
+                let options = cli::omaken::parse_install_args(&remaining, scripts_dir)?;
+                cli::omaken::run_install(options)?;
                 return Ok(());
             }
             "scripts" => {
-                let list_args: Vec<String> = args.collect();
-                if list_args
-                    .iter()
-                    .any(|arg| arg == "-h" || arg == "--help")
-                {
-                    list::print_list_help();
+                if cli::wants_help(&remaining) {
+                    cli::list::print_help();
                     return Ok(());
                 }
-                let options = list::parse_list_args(&list_args, scripts_dir())?;
-                list::run_list(options)?;
+                let options = cli::list::parse_args(&remaining, scripts_dir)?;
+                cli::list::run(options)?;
                 return Ok(());
             }
             "run" => {
-                let run_args: Vec<String> = args.collect();
-                if run::wants_help(&run_args) {
-                    run::print_run_help();
+                if cli::run::wants_help(&remaining) {
+                    cli::run::print_help();
                     return Ok(());
                 }
-                let options = run::parse_run_args(&run_args, scripts_dir())?;
-                run::run_script(options)?;
+                let options = cli::run::parse_args(&remaining, scripts_dir)?;
+                cli::run::run(options)?;
                 return Ok(());
             }
             "init" => {
-                let init_args: Vec<String> = args.collect();
-                if init_args
-                    .iter()
-                    .any(|arg| arg == "-h" || arg == "--help")
-                {
-                    init::print_init_help();
+                if cli::wants_help(&remaining) {
+                    cli::init::print_help();
                     return Ok(());
                 }
-                let options = init::parse_init_args(&init_args, scripts_dir())?;
-                init::run_init(options)?;
+                let options = cli::init::parse_args(&remaining, scripts_dir)?;
+                cli::init::run(options)?;
                 return Ok(());
             }
             "config" | "env" => {
-                let config_args: Vec<String> = args.collect();
-                if config_args
-                    .iter()
-                    .any(|arg| arg == "-h" || arg == "--help")
-                {
-                    config::print_config_help();
+                if cli::wants_help(&remaining) {
+                    cli::config::print_help();
                     return Ok(());
                 }
-                let options = config::parse_config_args(&config_args, scripts_dir())?;
-                config::run_config(options)?;
+                let options = cli::config::parse_args(&remaining, scripts_dir)?;
+                cli::config::run(options)?;
                 return Ok(());
             }
             "completion" => {
-                let completion_args: Vec<String> = args.collect();
-                if completion_args
-                    .iter()
-                    .any(|arg| arg == "-h" || arg == "--help")
-                {
-                    completion::print_completion_help();
+                if cli::wants_help(&remaining) {
+                    cli::completion::print_help();
                     return Ok(());
                 }
-                let options = completion::parse_completion_args(&completion_args)?;
-                completion::run_completion(options)?;
+                let options = cli::completion::parse_args(&remaining)?;
+                cli::completion::run(options)?;
                 return Ok(());
             }
             "help" | "-h" | "--help" => {
@@ -328,11 +286,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
     }
 
-    let scripts_dir = scripts_dir();
     let workspace = Workspace::new(scripts_dir.clone());
     workspace.ensure_layout()?;
 
-    let repo = Box::new(FsWorkspaceRepository::new(scripts_dir.clone()));
+    let repo = Box::new(FsWorkspaceRepository::new(scripts_dir));
     let runner = Box::new(MultiScriptRunner::new());
     let service = ScriptService::new(repo, runner);
 

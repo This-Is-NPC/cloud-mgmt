@@ -8,13 +8,15 @@ use crate::workspace::Workspace;
 use std::error::Error;
 use std::path::{Path, PathBuf};
 
+use super::ENV_HELP;
+
 pub struct RunOptions {
     pub script: String,
     pub args: Vec<String>,
     pub scripts_dir: PathBuf,
 }
 
-pub fn print_run_help() {
+pub fn print_help() {
     println!(
         "Usage: omakure run <script> [--] [args...]\n\n\
 Examples:\n\
@@ -24,13 +26,11 @@ Examples:\n\
 Notes:\n\
   Script paths are relative to the workspace root.\n\
   Extensions supported: .bash, .sh, .ps1, .py\n\n\
-Environment:\n\
-  OMAKURE_SCRIPTS_DIR  Scripts directory override\n\
-  OVERTURE_SCRIPTS_DIR  Legacy scripts directory override\n\
-  CLOUD_MGMT_SCRIPTS_DIR  Legacy scripts directory override"
+{ENV_HELP}"
     );
 }
 
+/// Check if help is requested (stops at `--` separator).
 pub fn wants_help(args: &[String]) -> bool {
     for arg in args {
         if arg == "--" {
@@ -43,10 +43,7 @@ pub fn wants_help(args: &[String]) -> bool {
     false
 }
 
-pub fn parse_run_args(
-    args: &[String],
-    scripts_dir: PathBuf,
-) -> Result<RunOptions, Box<dyn Error>> {
+pub fn parse_args(args: &[String], scripts_dir: PathBuf) -> Result<RunOptions, Box<dyn Error>> {
     if args.is_empty() {
         return Err("Missing script name. Use `omakure run <script>`.".into());
     }
@@ -71,8 +68,8 @@ pub fn parse_run_args(
     })
 }
 
-pub fn run_script(options: RunOptions) -> Result<(), Box<dyn Error>> {
-    let workspace = Workspace::new(options.scripts_dir.clone());
+pub fn run(options: RunOptions) -> Result<(), Box<dyn Error>> {
+    let workspace = Workspace::new(options.scripts_dir);
     workspace.ensure_layout()?;
 
     let script_path = resolve_script_path(&options.script, workspace.root())?;

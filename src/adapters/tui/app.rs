@@ -1,5 +1,5 @@
+use crate::adapters::environments::{self, EnvFile, EnvironmentConfig};
 use crate::history::HistoryEntry;
-use crate::environments::{self, EnvFile, EnvironmentConfig};
 use crate::lua_widget::{self, WidgetData};
 use crate::ports::{WorkspaceEntry, WorkspaceEntryKind};
 use crate::domain::Schema;

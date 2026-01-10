@@ -21,7 +21,7 @@ pub fn print_list_help() {
 Notes:\n\
   Lists installed Omaken flavors in .omaken.\n\n\
 Environment:\n\
-  OMAKURE_SCRIPTS_DIR  Workspace root override"
+  OMAKURE_SCRIPTS_DIR       Workspace root override"
     );
 }
 
@@ -31,7 +31,7 @@ pub fn print_install_help() {
 Notes:\n\
   Installs a flavor into .omaken from a Git repository.\n\n\
 Environment:\n\
-  OMAKURE_SCRIPTS_DIR  Workspace root override"
+  OMAKURE_SCRIPTS_DIR       Workspace root override"
     );
 }
 
@@ -130,11 +130,7 @@ fn install_omaken(
     }
     let target_dir = workspace.omaken_dir().join(&name);
     if target_dir.exists() {
-        return Err(format!(
-            "Omaken already exists: {}",
-            target_dir.display()
-        )
-        .into());
+        return Err(format!("Omaken already exists: {}", target_dir.display()).into());
     }
 
     let status = Command::new("git")

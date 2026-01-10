@@ -1,3 +1,4 @@
+use crate::util::ps_quote;
 use std::env;
 use std::error::Error;
 use std::path::{Path, PathBuf};
@@ -8,24 +9,23 @@ use winreg::enums::HKEY_CURRENT_USER;
 #[cfg(windows)]
 use winreg::RegKey;
 
+use super::ENV_HELP;
+
 pub struct UninstallOptions {
     pub scripts_dir: PathBuf,
     pub remove_scripts: bool,
 }
 
-pub fn print_uninstall_help() {
+pub fn print_help() {
     println!(
         "Usage: omakure uninstall [--scripts]\n\n\
 Options:\n\
   --scripts   Remove the scripts directory as well\n\n\
-Environment:\n\
-  OMAKURE_SCRIPTS_DIR  Scripts directory override\n\
-  OVERTURE_SCRIPTS_DIR  Legacy scripts directory override\n\
-  CLOUD_MGMT_SCRIPTS_DIR  Legacy scripts directory override"
+{ENV_HELP}"
     );
 }
 
-pub fn parse_uninstall_args(
+pub fn parse_args(
     args: &[String],
     scripts_dir: PathBuf,
 ) -> Result<UninstallOptions, Box<dyn Error>> {
@@ -50,7 +50,7 @@ pub fn parse_uninstall_args(
     Ok(options)
 }
 
-pub fn run_uninstall(options: UninstallOptions) -> Result<(), Box<dyn Error>> {
+pub fn run(options: UninstallOptions) -> Result<(), Box<dyn Error>> {
     let exe = env::current_exe()?;
 
     if cfg!(windows) {
@@ -135,10 +135,6 @@ if (Test-Path -LiteralPath $rootDir) {{
     Ok(())
 }
 
-fn ps_quote(input: &str) -> String {
-    format!("'{}'", input.replace('\'', "''"))
-}
-
 #[cfg(windows)]
 fn remove_from_user_path(install_dir: &Path) -> Result<bool, Box<dyn Error>> {
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
@@ -152,7 +148,10 @@ fn remove_from_user_path(install_dir: &Path) -> Result<bool, Box<dyn Error>> {
     remove_candidates.push(normalize_path(&install_dir.to_string_lossy()));
     if let Ok(local) = env::var("LOCALAPPDATA") {
         remove_candidates.push(normalize_path(
-            &PathBuf::from(local).join("omakure").join("bin").to_string_lossy(),
+            &PathBuf::from(local)
+                .join("omakure")
+                .join("bin")
+                .to_string_lossy(),
         ));
     } else if let Ok(profile) = env::var("USERPROFILE") {
         remove_candidates.push(normalize_path(
@@ -176,8 +175,8 @@ fn remove_from_user_path(install_dir: &Path) -> Result<bool, Box<dyn Error>> {
             continue;
         }
         let normalized = normalize_path(trimmed);
-        let remove = remove_candidates.contains(&normalized)
-            || normalized.ends_with("\\omakure\\bin");
+        let remove =
+            remove_candidates.contains(&normalized) || normalized.ends_with("\\omakure\\bin");
         if !remove {
             kept.push(trimmed.to_string());
         }

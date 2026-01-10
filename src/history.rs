@@ -187,3 +187,91 @@ fn timestamp_ms() -> i64 {
         .unwrap_or_default();
     duration.as_millis() as i64
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_format_timestamp() {
+        // 2024-01-15 12:30 UTC = 1705321800000 ms
+        let ts = 1705321800000_i64;
+        let formatted = format_timestamp(ts);
+        assert_eq!(formatted, "2024-01-15 12:30");
+    }
+
+    #[test]
+    fn test_format_timestamp_zero() {
+        let formatted = format_timestamp(0);
+        assert_eq!(formatted, "1970-01-01 00:00");
+    }
+
+    #[test]
+    fn test_format_timestamp_negative() {
+        let formatted = format_timestamp(-1000);
+        assert_eq!(formatted, "1970-01-01 00:00");
+    }
+
+    #[test]
+    fn test_safe_slug_simple() {
+        assert_eq!(safe_slug("hello"), "hello");
+        assert_eq!(safe_slug("Hello World"), "hello_world");
+    }
+
+    #[test]
+    fn test_safe_slug_special_chars() {
+        assert_eq!(safe_slug("my-script.bash"), "my_script_bash");
+        assert_eq!(safe_slug("path/to/script"), "path_to_script");
+    }
+
+    #[test]
+    fn test_safe_slug_consecutive_special() {
+        assert_eq!(safe_slug("a--b__c"), "a_b_c");
+    }
+
+    #[test]
+    fn test_safe_slug_empty() {
+        assert_eq!(safe_slug(""), "run");
+        assert_eq!(safe_slug("---"), "run");
+    }
+
+    #[test]
+    fn test_safe_slug_truncation() {
+        let long_name = "a".repeat(100);
+        let slug = safe_slug(&long_name);
+        assert!(slug.len() <= 64);
+    }
+
+    #[test]
+    fn test_format_output_success() {
+        let entry = HistoryEntry {
+            timestamp: 0,
+            script: PathBuf::from("test.bash"),
+            args: vec![],
+            success: true,
+            exit_code: Some(0),
+            stdout: "output here\n".to_string(),
+            stderr: "".to_string(),
+            error: None,
+        };
+        let output = format_output(&entry);
+        assert!(output.contains("STDOUT:"));
+        assert!(output.contains("output here"));
+    }
+
+    #[test]
+    fn test_format_output_with_error() {
+        let entry = HistoryEntry {
+            timestamp: 0,
+            script: PathBuf::from("test.bash"),
+            args: vec![],
+            success: false,
+            exit_code: None,
+            stdout: "".to_string(),
+            stderr: "".to_string(),
+            error: Some("Script failed to run".to_string()),
+        };
+        let output = format_output(&entry);
+        assert_eq!(output, "Script failed to run");
+    }
+}

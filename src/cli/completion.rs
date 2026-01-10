@@ -4,7 +4,7 @@ pub struct CompletionOptions {
     pub shell: String,
 }
 
-pub fn print_completion_help() {
+pub fn print_help() {
     println!(
         "Usage: omakure completion <shell>\n\n\
 Supported shells:\n\
@@ -12,7 +12,7 @@ Supported shells:\n\
     );
 }
 
-pub fn parse_completion_args(args: &[String]) -> Result<CompletionOptions, Box<dyn Error>> {
+pub fn parse_args(args: &[String]) -> Result<CompletionOptions, Box<dyn Error>> {
     if args.is_empty() {
         return Err("Missing shell name. Use `omakure completion <shell>`.".into());
     }
@@ -25,24 +25,14 @@ pub fn parse_completion_args(args: &[String]) -> Result<CompletionOptions, Box<d
     })
 }
 
-pub fn run_completion(options: CompletionOptions) -> Result<(), Box<dyn Error>> {
+pub fn run(options: CompletionOptions) -> Result<(), Box<dyn Error>> {
     let shell = options.shell.as_str();
     match shell {
-        "bash" => {
-            println!("{}", bash_completion());
-        }
-        "zsh" => {
-            println!("{}", zsh_completion());
-        }
-        "fish" => {
-            println!("{}", fish_completion());
-        }
-        "pwsh" | "powershell" => {
-            println!("{}", pwsh_completion());
-        }
-        _ => {
-            return Err(format!("Unsupported shell: {}", shell).into());
-        }
+        "bash" => println!("{}", bash_completion()),
+        "zsh" => println!("{}", zsh_completion()),
+        "fish" => println!("{}", fish_completion()),
+        "pwsh" | "powershell" => println!("{}", pwsh_completion()),
+        _ => return Err(format!("Unsupported shell: {}", shell).into()),
     }
 
     Ok(())
