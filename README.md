@@ -45,7 +45,7 @@ omakure
 
 3) Put scripts under `~/Documents/omakure-scripts` (Windows: `%USERPROFILE%\Documents\omakure-scripts`). Omakure scans this tree (including `.omaken`) for `.bash`, `.sh`, `.ps1`, and `.py` scripts.
 
-4) Make the script visible to Omakure by exposing a schema: when `SCHEMA_MODE=1`, print JSON with `Name`, `Description`, and `Fields`. The `omakure init my-script` command generates a template with the schema block.
+4) Make the script visible to Omakure by embedding a schema JSON block between `OMAKURE_SCHEMA_START` and `OMAKURE_SCHEMA_END`. The `omakure init my-script` command generates a template with the schema block.
 
 ## Advanced
 
