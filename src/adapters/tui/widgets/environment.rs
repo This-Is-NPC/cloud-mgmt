@@ -1,10 +1,10 @@
+use crate::app_meta;
+use crate::lua_widget::WidgetData;
+use crate::workspace::Workspace;
 use ratatui::layout::Rect;
 use ratatui::text::Line;
 use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
 use ratatui::Frame;
-use crate::app_meta;
-use crate::lua_widget::WidgetData;
-use crate::workspace::Workspace;
 
 pub(crate) fn render_environment(
     frame: &mut Frame,
@@ -54,10 +54,7 @@ pub(crate) fn status_info(
     }
 
     let mut lines = Vec::new();
-    lines.push(Line::from(format!(
-        "Root: {}",
-        workspace.root().display()
-    )));
+    lines.push(Line::from(format!("Root: {}", workspace.root().display())));
     lines.push(Line::from(format!("Version: v{}", app_meta::APP_VERSION)));
     let repo = if app_meta::REPO_URL.is_empty() {
         "<unknown>"

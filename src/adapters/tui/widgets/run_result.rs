@@ -23,7 +23,11 @@ pub(crate) fn render_run_result(frame: &mut Frame, area: Rect, app: &mut App) {
     }
 
     let output = Paragraph::new(lines)
-        .block(Block::default().borders(Borders::ALL).title("Last run output"))
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Last run output"),
+        )
         .wrap(Wrap { trim: false })
         .scroll((app.run_output_scroll, 0));
     frame.render_widget(output, chunks[0]);
@@ -71,10 +75,7 @@ fn status_label_and_style(status: &ExecutionStatus) -> (String, Style) {
     match status {
         ExecutionStatus::Success => ("OK".to_string(), Style::default().fg(Color::Green)),
         ExecutionStatus::Failed(code) => match code {
-            Some(code) => (
-                format!("FAIL ({})", code),
-                Style::default().fg(Color::Red),
-            ),
+            Some(code) => (format!("FAIL ({})", code), Style::default().fg(Color::Red)),
             None => ("FAIL".to_string(), Style::default().fg(Color::Red)),
         },
         ExecutionStatus::Error => ("ERROR".to_string(), Style::default().fg(Color::Yellow)),

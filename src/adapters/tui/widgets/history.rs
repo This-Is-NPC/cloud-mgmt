@@ -24,7 +24,9 @@ pub(crate) fn render_history(frame: &mut Frame, area: Rect, app: &mut App) {
     render_history_output(frame, body_chunks[1], app);
 
     let footer_text = match app.history_focus {
-        HistoryFocus::List => "Up/Down to select, Enter to view output, Alt+E envs, Esc/q to go back",
+        HistoryFocus::List => {
+            "Up/Down to select, Enter to view output, Alt+E envs, Esc/q to go back"
+        }
         HistoryFocus::Output => "Up/Down to scroll, PgUp/PgDn, Esc to return, q to go back",
     };
     let footer = Paragraph::new(footer_text).style(Style::default().fg(Color::Gray));
@@ -78,10 +80,10 @@ fn render_history_list(frame: &mut Frame, area: Rect, app: &mut App) {
             Constraint::Min(HISTORY_MIN_SCRIPT_WIDTH),
         ],
     )
-        .header(header)
-        .block(Block::default().borders(Borders::ALL).title("History"))
-        .highlight_style(highlight_style)
-        .highlight_symbol(highlight_symbol);
+    .header(header)
+    .block(Block::default().borders(Borders::ALL).title("History"))
+    .highlight_style(highlight_style)
+    .highlight_symbol(highlight_symbol);
 
     frame.render_stateful_widget(table, area, &mut app.history_state);
 }
@@ -140,10 +142,7 @@ fn status_label_and_style(status: &ExecutionStatus) -> (String, Style) {
     match status {
         ExecutionStatus::Success => ("OK".to_string(), Style::default().fg(Color::Green)),
         ExecutionStatus::Failed(code) => match code {
-            Some(code) => (
-                format!("FAIL ({})", code),
-                Style::default().fg(Color::Red),
-            ),
+            Some(code) => (format!("FAIL ({})", code), Style::default().fg(Color::Red)),
             None => ("FAIL".to_string(), Style::default().fg(Color::Red)),
         },
         ExecutionStatus::Error => ("ERROR".to_string(), Style::default().fg(Color::Yellow)),
@@ -167,13 +166,10 @@ fn history_list_width(total_width: u16, app: &App) -> u16 {
         .unwrap_or(0)
         .max(HISTORY_MIN_SCRIPT_WIDTH);
 
-    let content_width = HISTORY_STATUS_WIDTH
-        + HISTORY_DATE_WIDTH
-        + max_script
-        + HISTORY_COLUMN_SPACING * 2;
+    let content_width =
+        HISTORY_STATUS_WIDTH + HISTORY_DATE_WIDTH + max_script + HISTORY_COLUMN_SPACING * 2;
     let desired = content_width + HISTORY_BORDER_WIDTH + HISTORY_HIGHLIGHT_WIDTH;
-    let min_output = HISTORY_MIN_OUTPUT_WIDTH
-        .min(total_width.saturating_sub(10).max(1));
+    let min_output = HISTORY_MIN_OUTPUT_WIDTH.min(total_width.saturating_sub(10).max(1));
     let max_list = total_width.saturating_sub(min_output);
     desired.min(max_list).max(1)
 }

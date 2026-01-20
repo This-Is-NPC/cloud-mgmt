@@ -66,8 +66,7 @@ fn render_field_boxes(frame: &mut Frame, area: Rect, app: &App) {
     frame.render_widget(outer, area);
 
     if app.fields.is_empty() {
-        let empty = Paragraph::new("No fields found.")
-            .wrap(Wrap { trim: true });
+        let empty = Paragraph::new("No fields found.").wrap(Wrap { trim: true });
         frame.render_widget(empty, inner);
         return;
     }
@@ -99,11 +98,7 @@ fn render_field_boxes(frame: &mut Frame, area: Rect, app: &App) {
         } else {
             Style::default().fg(Color::Gray)
         };
-        let value = app
-            .field_inputs
-            .get(idx)
-            .map(String::as_str)
-            .unwrap_or("");
+        let value = app.field_inputs.get(idx).map(String::as_str).unwrap_or("");
         let value_text = if value.trim().is_empty() {
             field
                 .default
