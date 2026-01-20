@@ -199,26 +199,23 @@ fn build_powershell_template(script_id: &str) -> String {
     format!(
         r#"# PowerShell script template
 
-if ($env:SCHEMA_MODE -eq "1") {{
-@'
-{{
-  "Name": "{script_id}",
-  "Description": "Describe what this script does.",
-  "Tags": [],
-  "Fields": [
-    {{
-      "Name": "target",
-      "Prompt": "Target (optional)",
-      "Type": "string",
-      "Order": 1,
-      "Required": false,
-      "Arg": "--target"
-    }}
-  ]
-}}
-'@
-  exit 0
-}}
+# OMAKURE_SCHEMA_START
+# {{
+#   "Name": "{script_id}",
+#   "Description": "Describe what this script does.",
+#   "Tags": [],
+#   "Fields": [
+#     {{
+#       "Name": "target",
+#       "Prompt": "Target (optional)",
+#       "Type": "string",
+#       "Order": 1,
+#       "Required": false,
+#       "Arg": "--target"
+#     }}
+#   ]
+# }}
+# OMAKURE_SCHEMA_END
 
 $Target = ""
 for ($i = 0; $i -lt $args.Length; $i++) {{
