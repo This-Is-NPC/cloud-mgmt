@@ -5,42 +5,39 @@ set -euo pipefail
 # Delete a Resource Group and all resources inside it
 # ------------------------------------------------------------
 
-if [[ "${SCHEMA_MODE:-}" == "1" ]]; then
-  cat <<'JSON'
-{
-  "Name": "rg_delete",
-  "Description": "Delete a resource group and all resources inside it.",
-  "Fields": [
-    {
-      "Name": "resource_group",
-      "Prompt": "Resource group name",
-      "Type": "string",
-      "Order": 1,
-      "Required": true,
-      "Arg": "--resource-group"
-    },
-    {
-      "Name": "subscription_id",
-      "Prompt": "Subscription id (optional)",
-      "Type": "string",
-      "Order": 2,
-      "Required": false,
-      "Arg": "--subscription-id"
-    },
-    {
-      "Name": "confirm",
-      "Prompt": "Confirm deletion (true/false)",
-      "Type": "bool",
-      "Order": 3,
-      "Required": false,
-      "Arg": "--confirm",
-      "Default": "false"
-    }
-  ]
-}
-JSON
-  exit 0
-fi
+# OMAKURE_SCHEMA_START
+# {
+#   "Name": "rg_delete",
+#   "Description": "Delete a resource group and all resources inside it.",
+#   "Fields": [
+#     {
+#       "Name": "resource_group",
+#       "Prompt": "Resource group name",
+#       "Type": "string",
+#       "Order": 1,
+#       "Required": true,
+#       "Arg": "--resource-group"
+#     },
+#     {
+#       "Name": "subscription_id",
+#       "Prompt": "Subscription id (optional)",
+#       "Type": "string",
+#       "Order": 2,
+#       "Required": false,
+#       "Arg": "--subscription-id"
+#     },
+#     {
+#       "Name": "confirm",
+#       "Prompt": "Confirm deletion (true/false)",
+#       "Type": "bool",
+#       "Order": 3,
+#       "Required": false,
+#       "Arg": "--confirm",
+#       "Default": "false"
+#     }
+#   ]
+# }
+# OMAKURE_SCHEMA_END
 
 run_az() {
   local err_file output
