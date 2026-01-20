@@ -140,26 +140,24 @@ fn build_bash_template(script_id: &str) -> String {
 set -euo pipefail
 
 # 1) Schema for the TUI
-if [[ "${{SCHEMA_MODE:-}}" == "1" ]]; then
-  cat <<'JSON'
-{{
-  "Name": "{script_id}",
-  "Description": "Describe what this script does.",
-  "Tags": [],
-  "Fields": [
-    {{
-      "Name": "target",
-      "Prompt": "Target (optional)",
-      "Type": "string",
-      "Order": 1,
-      "Required": false,
-      "Arg": "--target"
-    }}
-  ]
-}}
-JSON
-  exit 0
-fi
+# OMAKURE_SCHEMA_START
+# {{
+#   "Name": "{script_id}",
+#   "Description": "Describe what this script does.",
+#   "Tags": [],
+#   "Fields": [
+#     {{
+#       "Name": "target",
+#       "Prompt": "Target (optional)",
+#       "Type": "string",
+#       "Order": 1,
+#       "Required": false,
+#       "Arg": "--target"
+#     }}
+#   ]
+# }}
+# OMAKURE_SCHEMA_END
+
 
 # 2) Defaults
 TARGET=""
@@ -255,21 +253,21 @@ import sys
 import argparse
 
 if os.environ.get("SCHEMA_MODE") == "1":
-    print(json.dumps({{
+    print(json.dumps({
         "Name": "{script_id}",
         "Description": "Describe what this script does.",
         "Tags": [],
         "Fields": [
-            {{
+            {
                 "Name": "target",
                 "Prompt": "Target (optional)",
                 "Type": "string",
                 "Order": 1,
                 "Required": False,
                 "Arg": "--target"
-            }}
+            }
         ]
-    }}, indent=2))
+    }, indent=2))
     sys.exit(0)
 
 parser = argparse.ArgumentParser()
