@@ -244,6 +244,53 @@ Some output after"#;
         assert!(result.is_err());
     }
 
+    fn make_schema_json() -> String {
+        r#"{
+  "Name": "test_script",
+  "Description": "A test script",
+  "Fields": []
+}"#
+        .to_string()
+    }
+
+    fn comment_block(prefix: &str, json: &str) -> String {
+        json.lines()
+            .map(|line| format!("{} {}", prefix, line))
+            .collect::<Vec<String>>()
+            .join("\n")
+    }
+
+    #[test]
+    fn test_extract_schema_block_hash_prefix() {
+        let json = make_schema_json();
+        let contents = format!(
+            "#!/usr/bin/env bash\n# OMAKURE_SCHEMA_START\n{}\n# OMAKURE_SCHEMA_END",
+            comment_block("#", &json)
+        );
+        let block = extract_schema_block(&contents, &["#"]).unwrap();
+        let schema = parse_schema(&block).unwrap();
+        assert_eq!(schema.name, "test_script");
+    }
+
+    #[test]
+    fn test_extract_schema_block_semicolon_prefix() {
+        let json = make_schema_json();
+        let contents = format!(
+            "; OMAKURE_SCHEMA_START\n{}\n; OMAKURE_SCHEMA_END",
+            comment_block(";", &json)
+        );
+        let block = extract_schema_block(&contents, &[";"]).unwrap();
+        let schema = parse_schema(&block).unwrap();
+        assert_eq!(schema.name, "test_script");
+    }
+
+    #[test]
+    fn test_extract_schema_block_missing_prefix_line() {
+        let contents = "# OMAKURE_SCHEMA_START\n{\n# OMAKURE_SCHEMA_END";
+        let result = extract_schema_block(contents, &["#"]);
+        assert!(result.is_err());
+    }
+
     #[test]
     fn test_normalize_input_string() {
         let field = make_field("name", "string", false);
