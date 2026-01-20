@@ -4,11 +4,13 @@ mod theme;
 mod ui;
 mod widgets;
 
+use crate::search_index::SearchIndex;
 use crate::use_cases::ScriptService;
 use crate::workspace::Workspace;
-use crate::search_index::SearchIndex;
 use crossterm::event::{self, Event, KeyEventKind};
-use crossterm::terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen};
+use crossterm::terminal::{
+    disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
+};
 use crossterm::ExecutableCommand;
 use ratatui::backend::CrosstermBackend;
 use ratatui::Terminal;
@@ -16,8 +18,8 @@ use std::error::Error;
 use std::io;
 use std::time::Duration;
 
-use app::{App, Screen};
 use crate::history;
+use app::{App, Screen};
 use events::handle_key_event;
 use ui::{render_loading, render_ui};
 

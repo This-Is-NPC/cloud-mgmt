@@ -7,7 +7,7 @@ use ratatui::Frame;
 use super::app::{App, Screen};
 use super::theme::{BRAND_GRADIENT_END, BRAND_GRADIENT_START};
 use super::widgets::{
-    envs, environment, error as error_widget, field_input, history, loading as loading_widget,
+    environment, envs, error as error_widget, field_input, history, loading as loading_widget,
     run_result, running, schema, scripts, search,
 };
 
@@ -100,7 +100,8 @@ fn render_script_select(frame: &mut Frame, app: &mut App) {
     let mut footer_text = if app.entries.is_empty() {
         "Folder is empty. r refresh, h history, Ctrl+S search, Alt+E envs, q quit".to_string()
     } else {
-        "Up/Down move, Enter open/run, r refresh, h history, Ctrl+S search, Alt+E envs, q quit".to_string()
+        "Up/Down move, Enter open/run, r refresh, h history, Ctrl+S search, Alt+E envs, q quit"
+            .to_string()
     };
     if app.current_dir != app.workspace.root() {
         if app.entries.is_empty() {
@@ -157,7 +158,10 @@ fn gradient_line(text: &str, start: (u8, u8, u8), end: (u8, u8, u8)) -> Line<'st
                 idx as f32 / (len - 1) as f32
             };
             let color = lerp_color(start, end, t);
-            Span::styled(ch.to_string(), Style::default().fg(color).add_modifier(Modifier::BOLD))
+            Span::styled(
+                ch.to_string(),
+                Style::default().fg(color).add_modifier(Modifier::BOLD),
+            )
         })
         .collect::<Vec<_>>();
     Line::from(spans)
@@ -165,5 +169,9 @@ fn gradient_line(text: &str, start: (u8, u8, u8), end: (u8, u8, u8)) -> Line<'st
 
 fn lerp_color(start: (u8, u8, u8), end: (u8, u8, u8), t: f32) -> Color {
     let lerp = |a, b| (a as f32 + (b as f32 - a as f32) * t).round() as u8;
-    Color::Rgb(lerp(start.0, end.0), lerp(start.1, end.1), lerp(start.2, end.2))
+    Color::Rgb(
+        lerp(start.0, end.0),
+        lerp(start.1, end.1),
+        lerp(start.2, end.2),
+    )
 }
