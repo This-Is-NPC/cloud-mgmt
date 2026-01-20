@@ -8,7 +8,7 @@ Omakure is a Rust TUI application for navigating and executing automation script
 
 **Key concepts:**
 - **Workspace**: Root directory containing scripts (default: `~/Documents/omakure-scripts`)
-- **Schema**: JSON metadata scripts expose via `SCHEMA_MODE=1` describing name, description, and input fields
+- **Schema**: JSON metadata scripts embed in a commented block between `OMAKURE_SCHEMA_START` and `OMAKURE_SCHEMA_END`
 - **Omaken**: Hidden `.omaken/` folder for config, environments, and widgets
 - **Environments**: `.conf` files in `.omaken/envs/` providing default field values
 
@@ -198,27 +198,34 @@ Scripts directory structure:
 
 ## Script Schema Format
 
-Scripts expose metadata when `SCHEMA_MODE=1`:
+Scripts embed metadata in a commented block:
 
-```json
-{
-  "Name": "my_script",
-  "Description": "What it does",
-  "Tags": ["optional", "tags"],
-  "Fields": [
-    {
-      "Name": "target",
-      "Prompt": "Enter target",
-      "Type": "string",
-      "Order": 1,
-      "Required": true,
-      "Arg": "--target",
-      "Default": "default_value",
-      "Choices": ["option1", "option2"]
-    }
-  ]
-}
+```text
+# OMAKURE_SCHEMA_START
+# {
+#   "Name": "my_script",
+#   "Description": "What it does",
+#   "Tags": ["optional", "tags"],
+#   "Fields": [
+#     {
+#       "Name": "target",
+#       "Prompt": "Enter target",
+#       "Type": "string",
+#       "Order": 1,
+#       "Required": true,
+#       "Arg": "--target",
+#       "Default": "default_value",
+#       "Choices": ["option1", "option2"]
+#     }
+#   ]
+# }
+# OMAKURE_SCHEMA_END
 ```
+
+**Comment prefixes by extension**:
+- `.bash`/`.sh`: `#`
+- `.ps1`: `#` or `;`
+- `.py`: `#`
 
 **Field types**: `string`, `number`, `bool`/`boolean`
 
@@ -321,7 +328,7 @@ Tests are located in:
 
 1. **Schema JSON is PascalCase** - Field names like `Name`, `Description`, not `name`, `description`
 
-2. **SCHEMA_MODE detection** - Scripts must check `SCHEMA_MODE=1` env var and print JSON schema, then exit
+2. **Schema blocks** - Scripts must include a commented JSON schema block between `OMAKURE_SCHEMA_START` and `OMAKURE_SCHEMA_END`
 
 3. **Scripts dir resolution** - Order: env overrides (including legacy `OVERTURE_`/`CLOUD_MGMT_`), repo `scripts/` in debug builds, `~/Documents/omakure-scripts` if present, legacy `overture-scripts`/`cloud-mgmt-scripts`, then `~/Documents/omakure-scripts` fallback (Windows Documents path comes from the registry).
 
@@ -331,7 +338,7 @@ Tests are located in:
 
 6. **Search index background rebuild** - `SearchIndex::start_background_rebuild()` runs in a background thread on startup
 
-7. **Script types by extension** - `.bash`/`.sh` → bash, `.ps1` → PowerShell (`pwsh` on non-Windows), `.py` → Python3 (determined in `runtime.rs`)
+7. **Script types by extension** - `.bash`/`.sh` → bash, `.ps1` → PowerShell (`pwsh` on non-Windows), `.py` → Python3 (determined in `runtime.rs`); schema blocks must use extension-specific comment prefixes
 
 8. **Update dependencies** - `update` uses curl/wget/PowerShell to fetch releases and copies missing scripts from the tag into the workspace; ensure those tools are present.
 
