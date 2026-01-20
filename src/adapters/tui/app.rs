@@ -1,8 +1,8 @@
 use crate::adapters::environments::{self, EnvFile, EnvironmentConfig};
+use crate::domain::Schema;
 use crate::history::HistoryEntry;
 use crate::lua_widget::{self, WidgetData};
 use crate::ports::{WorkspaceEntry, WorkspaceEntryKind};
-use crate::domain::Schema;
 use crate::search_index::{SearchDetails, SearchIndex, SearchResult, SearchStatus};
 use crate::use_cases::ScriptService;
 use crate::workspace::Workspace;
@@ -65,6 +65,9 @@ pub(crate) struct App<'a> {
     pub(crate) env_entries: Vec<EnvFile>,
     pub(crate) env_state: ListState,
     env_selection: usize,
+    pub(crate) env_preview_lines: Vec<ratatui::text::Line<'static>>,
+    pub(crate) env_preview_error: Option<String>,
+    pub(crate) env_preview_scroll: u16,
     pub(crate) schema_preview: Option<SchemaPreview>,
     pub(crate) schema_preview_error: Option<String>,
     preview_script: Option<PathBuf>,
@@ -130,6 +133,9 @@ impl<'a> App<'a> {
             env_entries: Vec::new(),
             env_state: ListState::default(),
             env_selection: 0,
+            env_preview_lines: Vec::new(),
+            env_preview_error: None,
+            env_preview_scroll: 0,
             schema_preview: None,
             schema_preview_error: None,
             preview_script: None,
@@ -165,6 +171,7 @@ impl<'a> App<'a> {
         app.start_widget_load();
         app.load_env_config();
         app.update_schema_preview();
+        app.update_env_preview();
         app
     }
 
@@ -197,12 +204,24 @@ impl<'a> App<'a> {
     pub(crate) fn enter_envs(&mut self) {
         self.env_return = Some(self.screen);
         self.load_env_config();
+        self.update_env_preview();
         self.screen = Screen::Environments;
     }
 
     pub(crate) fn exit_envs(&mut self) {
         self.screen = self.env_return.unwrap_or(Screen::ScriptSelect);
         self.env_return = None;
+    }
+
+    pub(crate) fn scroll_env_preview(&mut self, delta: i16) {
+        let mut next = self.env_preview_scroll as i16 + delta;
+        if next < 0 {
+            next = 0;
+        }
+        if next > u16::MAX as i16 {
+            next = u16::MAX as i16;
+        }
+        self.env_preview_scroll = next as u16;
     }
 
     pub(crate) fn move_env_selection(&mut self, delta: isize) {
@@ -218,6 +237,7 @@ impl<'a> App<'a> {
         }
         self.env_selection = new_index as usize;
         self.env_state.select(Some(self.env_selection));
+        self.update_env_preview();
     }
 
     pub(crate) fn activate_selected_env(&mut self) {
@@ -355,12 +375,17 @@ impl<'a> App<'a> {
                 self.args.clear();
                 self.error = None;
                 self.selected_script = Some(script.clone());
-                self.schema_cache = Some((script.clone(), Schema {
-                    name: self.schema_name.clone().unwrap_or_default(),
-                    description: self.schema_description.clone(),
-                    tags,
-                    fields: self.fields.clone(),
-                }));
+                self.schema_cache = Some((
+                    script.clone(),
+                    Schema {
+                        name: self.schema_name.clone().unwrap_or_default(),
+                        description: self.schema_description.clone(),
+                        tags,
+                        fields: self.fields.clone(),
+                        outputs: None,
+                        queue: None,
+                    },
+                ));
                 if self.fields.is_empty() {
                     self.result = Some((script, Vec::new()));
                 } else {
@@ -412,11 +437,7 @@ impl<'a> App<'a> {
 
         let mut args = Vec::new();
         for (idx, field) in self.fields.iter().enumerate() {
-            let input = self
-                .field_inputs
-                .get(idx)
-                .map(String::as_str)
-                .unwrap_or("");
+            let input = self.field_inputs.get(idx).map(String::as_str).unwrap_or("");
             match crate::domain::normalize_input(field, input) {
                 Ok(value) => {
                     if let Some(value) = value {
@@ -495,9 +516,7 @@ impl<'a> App<'a> {
 
     pub(crate) fn scroll_run_output(&mut self, delta: i16) {
         if delta > 0 {
-            self.run_output_scroll = self
-                .run_output_scroll
-                .saturating_add(delta as u16);
+            self.run_output_scroll = self.run_output_scroll.saturating_add(delta as u16);
         } else if delta < 0 {
             let amount = (-delta) as u16;
             self.run_output_scroll = self.run_output_scroll.saturating_sub(amount);
@@ -568,7 +587,9 @@ impl<'a> App<'a> {
 
         let selected = if env_entries.is_empty() {
             0
-        } else if let Some(active) = env_config.as_ref().and_then(|config| config.active.as_ref())
+        } else if let Some(active) = env_config
+            .as_ref()
+            .and_then(|config| config.active.as_ref())
         {
             env_entries
                 .iter()
@@ -588,6 +609,63 @@ impl<'a> App<'a> {
 
         self.env_config = env_config;
         self.env_error = env_error;
+        self.update_env_preview();
+    }
+
+    fn update_env_preview(&mut self) {
+        self.env_preview_scroll = 0;
+        self.env_preview_error = None;
+
+        let entry = match self.env_entries.get(self.env_selection) {
+            Some(entry) => entry,
+            None => {
+                self.env_preview_lines = Vec::new();
+                return;
+            }
+        };
+
+        let envs_dir = self
+            .env_config
+            .as_ref()
+            .map(|config| config.envs_dir.clone())
+            .unwrap_or_else(|| self.workspace.envs_dir().to_path_buf());
+        let env_path = envs_dir.join(&entry.name);
+
+        match environments::load_env_preview(&env_path) {
+            Ok(entries) => {
+                let mut lines = Vec::new();
+                for (key, value) in entries {
+                    let line = ratatui::text::Line::from(vec![
+                        ratatui::text::Span::styled(
+                            key,
+                            ratatui::style::Style::default()
+                                .fg(ratatui::style::Color::Yellow)
+                                .add_modifier(ratatui::style::Modifier::BOLD),
+                        ),
+                        ratatui::text::Span::styled(
+                            " = ",
+                            ratatui::style::Style::default().fg(ratatui::style::Color::Gray),
+                        ),
+                        ratatui::text::Span::raw(value),
+                    ]);
+                    lines.push(line);
+                }
+                if lines.is_empty() {
+                    self.env_preview_lines =
+                        vec![ratatui::text::Line::from(ratatui::text::Span::styled(
+                            "No entries found.",
+                            ratatui::style::Style::default().fg(ratatui::style::Color::Gray),
+                        ))];
+                } else {
+                    self.env_preview_lines = lines;
+                }
+                self.env_preview_error = None;
+            }
+            Err(err) => {
+                self.env_preview_lines = Vec::new();
+                self.env_preview_error = Some(err);
+            }
+        }
     }
 
     fn build_field_inputs(&self) -> Vec<String> {
