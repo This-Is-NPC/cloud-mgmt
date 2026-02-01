@@ -1,51 +1,96 @@
-use std::error::Error;
-use std::fmt;
 use std::io;
+use thiserror::Error;
 
-/// Application-specific error type for future use.
-/// Currently the codebase uses `Box<dyn Error>` but can be
-/// gradually migrated to use this type for better error handling.
-#[allow(dead_code)]
-#[derive(Debug)]
+/// Application error type covering all error categories.
+#[derive(Debug, Error)]
 pub enum AppError {
-    /// I/O error from filesystem operations.
-    Io(io::Error),
-    /// Schema parsing or validation error.
-    Schema(String),
-    /// Script execution error.
-    Script(String),
-    /// Configuration error.
+    #[error("IO error: {0}")]
+    Io(#[from] io::Error),
+
+    #[error("Schema error: {0}")]
+    Schema(#[from] SchemaError),
+
+    #[error("Script error: {0}")]
+    Script(#[from] ScriptError),
+
+    #[error("Environment error: {0}")]
+    Environment(#[from] EnvironmentError),
+
+    #[error("Configuration error: {0}")]
     Config(String),
-    /// General application error.
+
+    #[error("{0}")]
     General(String),
 }
 
-impl fmt::Display for AppError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            AppError::Io(err) => write!(f, "I/O error: {}", err),
-            AppError::Schema(msg) => write!(f, "Schema error: {}", msg),
-            AppError::Script(msg) => write!(f, "Script error: {}", msg),
-            AppError::Config(msg) => write!(f, "Config error: {}", msg),
-            AppError::General(msg) => write!(f, "{}", msg),
-        }
-    }
+/// Errors related to schema parsing and validation.
+#[derive(Debug, Error)]
+pub enum SchemaError {
+    #[error("Schema block not found in script")]
+    BlockNotFound,
+
+    #[error("Schema block is empty")]
+    EmptyBlock,
+
+    #[error("Schema block line missing comment prefix at line {line}")]
+    MissingCommentPrefix { line: usize },
+
+    #[error("Invalid JSON in schema: {0}")]
+    InvalidJson(#[from] serde_json::Error),
+
+    #[error("Schema JSON object not found in output")]
+    JsonNotFound,
+
+    #[error("Value required")]
+    ValueRequired,
+
+    #[error("Enter a valid number")]
+    InvalidNumber,
+
+    #[error("Enter true/false (or yes/no)")]
+    InvalidBoolean,
+
+    #[error("Allowed values: {choices}")]
+    InvalidChoice { choices: String },
 }
 
-impl Error for AppError {
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
-        match self {
-            AppError::Io(err) => Some(err),
-            _ => None,
-        }
-    }
+/// Errors related to script execution.
+#[derive(Debug, Error)]
+pub enum ScriptError {
+    #[error("Script not found: {path}")]
+    NotFound { path: String },
+
+    #[error("Unsupported script type")]
+    UnsupportedType,
+
+    #[error("Execution failed: {message}")]
+    ExecutionFailed { message: String },
+
+    #[error("{name} not found in PATH. {hint}")]
+    DependencyMissing { name: String, hint: String },
+
+    #[error("{name} found, but check failed: {message}")]
+    DependencyCheckFailed { name: String, message: String },
 }
 
-impl From<io::Error> for AppError {
-    fn from(err: io::Error) -> Self {
-        AppError::Io(err)
-    }
+/// Errors related to environment configuration.
+#[derive(Debug, Error)]
+pub enum EnvironmentError {
+    #[error("Environment not found: {name}")]
+    NotFound { name: String },
+
+    #[error("Invalid environment file format: {0}")]
+    InvalidFormat(String),
+
+    #[error("Failed to read environment: {0}")]
+    ReadFailed(String),
+
+    #[error("Failed to write environment: {0}")]
+    WriteFailed(String),
 }
+
+/// Result type alias using AppError.
+pub type AppResult<T> = Result<T, AppError>;
 
 impl From<String> for AppError {
     fn from(msg: String) -> Self {
@@ -59,18 +104,34 @@ impl From<&str> for AppError {
     }
 }
 
-/// Result type alias using AppError.
-#[allow(dead_code)]
-pub type AppResult<T> = Result<T, AppError>;
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn test_app_error_display() {
-        let err = AppError::Schema("invalid field".to_string());
-        assert_eq!(format!("{}", err), "Schema error: invalid field");
+        let err = AppError::Schema(SchemaError::BlockNotFound);
+        assert_eq!(
+            format!("{}", err),
+            "Schema error: Schema block not found in script"
+        );
+    }
+
+    #[test]
+    fn test_schema_error_display() {
+        let err = SchemaError::InvalidChoice {
+            choices: "dev, prod".to_string(),
+        };
+        assert_eq!(format!("{}", err), "Allowed values: dev, prod");
+    }
+
+    #[test]
+    fn test_script_error_display() {
+        let err = ScriptError::DependencyMissing {
+            name: "bash".to_string(),
+            hint: "Install bash".to_string(),
+        };
+        assert_eq!(format!("{}", err), "bash not found in PATH. Install bash");
     }
 
     #[test]
@@ -85,5 +146,12 @@ mod tests {
         let err = AppError::from(io_err);
         assert!(matches!(err, AppError::Io(_)));
         assert!(format!("{}", err).contains("file not found"));
+    }
+
+    #[test]
+    fn test_schema_error_from_serde() {
+        let json_err = serde_json::from_str::<serde_json::Value>("invalid").unwrap_err();
+        let err = SchemaError::from(json_err);
+        assert!(matches!(err, SchemaError::InvalidJson(_)));
     }
 }

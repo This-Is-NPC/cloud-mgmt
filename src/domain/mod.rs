@@ -1,5 +1,5 @@
+use crate::error::SchemaError;
 use serde::Deserialize;
-use std::error::Error;
 
 #[derive(Debug, Deserialize, Clone)]
 #[serde(rename_all = "PascalCase")]
@@ -75,7 +75,7 @@ pub struct CaseValue {
     pub value: String,
 }
 
-pub fn parse_schema(output: &str) -> Result<Schema, Box<dyn Error>> {
+pub fn parse_schema(output: &str) -> Result<Schema, SchemaError> {
     for (start, _) in output.match_indices('{') {
         let json = &output[start..];
         let mut deserializer = serde_json::Deserializer::from_str(json);
@@ -84,10 +84,10 @@ pub fn parse_schema(output: &str) -> Result<Schema, Box<dyn Error>> {
         }
     }
 
-    Err("Schema JSON object not found in output".into())
+    Err(SchemaError::JsonNotFound)
 }
 
-pub fn extract_schema_block(contents: &str, prefixes: &[&str]) -> Result<String, String> {
+pub fn extract_schema_block(contents: &str, prefixes: &[&str]) -> Result<String, SchemaError> {
     let mut in_block = false;
     let mut buffer = String::new();
 
@@ -100,7 +100,7 @@ pub fn extract_schema_block(contents: &str, prefixes: &[&str]) -> Result<String,
             }
             if in_block && trimmed == "OMAKURE_SCHEMA_END" {
                 if buffer.trim().is_empty() {
-                    return Err("Schema block is empty".to_string());
+                    return Err(SchemaError::EmptyBlock);
                 }
                 return Ok(buffer);
             }
@@ -114,14 +114,11 @@ pub fn extract_schema_block(contents: &str, prefixes: &[&str]) -> Result<String,
             if line.trim().is_empty() {
                 continue;
             }
-            return Err(format!(
-                "Schema block line missing comment prefix at line {}",
-                index + 1
-            ));
+            return Err(SchemaError::MissingCommentPrefix { line: index + 1 });
         }
     }
 
-    Err("Schema block not found".to_string())
+    Err(SchemaError::BlockNotFound)
 }
 
 fn strip_comment_prefix<'a>(line: &'a str, prefixes: &[&str]) -> Option<&'a str> {
@@ -138,7 +135,7 @@ fn strip_comment_prefix<'a>(line: &'a str, prefixes: &[&str]) -> Option<&'a str>
     None
 }
 
-pub fn normalize_input(field: &Field, input: &str) -> Result<Option<String>, String> {
+pub fn normalize_input(field: &Field, input: &str) -> Result<Option<String>, SchemaError> {
     let trimmed = input.trim();
     let required = field.required.unwrap_or(false);
     let default_value = field.default.as_deref();
@@ -147,7 +144,7 @@ pub fn normalize_input(field: &Field, input: &str) -> Result<Option<String>, Str
         if let Some(default_value) = default_value {
             default_value.to_string()
         } else if required {
-            return Err("Value required".to_string());
+            return Err(SchemaError::ValueRequired);
         } else {
             return Ok(None);
         }
@@ -157,7 +154,9 @@ pub fn normalize_input(field: &Field, input: &str) -> Result<Option<String>, Str
 
     if let Some(choices) = &field.choices {
         if !choices.iter().any(|choice| choice == &raw_value) {
-            return Err(format!("Allowed values: {}", choices.join(", ")));
+            return Err(SchemaError::InvalidChoice {
+                choices: choices.join(", "),
+            });
         }
     }
 
@@ -166,13 +165,13 @@ pub fn normalize_input(field: &Field, input: &str) -> Result<Option<String>, Str
         "string" => Ok(Some(raw_value)),
         "number" => {
             if raw_value.parse::<f64>().is_err() {
-                return Err("Enter a valid number".to_string());
+                return Err(SchemaError::InvalidNumber);
             }
             Ok(Some(raw_value))
         }
         "bool" | "boolean" => match parse_bool(&raw_value) {
             Some(value) => Ok(Some(value.to_string())),
-            None => Err("Enter true/false (or yes/no)".to_string()),
+            None => Err(SchemaError::InvalidBoolean),
         },
         _ => Ok(Some(raw_value)),
     }
@@ -311,7 +310,7 @@ Some output after"#;
         let field = make_field("name", "string", true);
         let result = normalize_input(&field, "");
         assert!(result.is_err());
-        assert_eq!(result.unwrap_err(), "Value required");
+        assert!(matches!(result.unwrap_err(), SchemaError::ValueRequired));
     }
 
     #[test]
@@ -337,7 +336,7 @@ Some output after"#;
         let field = make_field("count", "number", false);
         let result = normalize_input(&field, "not a number");
         assert!(result.is_err());
-        assert_eq!(result.unwrap_err(), "Enter a valid number");
+        assert!(matches!(result.unwrap_err(), SchemaError::InvalidNumber));
     }
 
     #[test]
@@ -384,7 +383,7 @@ Some output after"#;
         let field = make_field("flag", "bool", false);
         let result = normalize_input(&field, "maybe");
         assert!(result.is_err());
-        assert_eq!(result.unwrap_err(), "Enter true/false (or yes/no)");
+        assert!(matches!(result.unwrap_err(), SchemaError::InvalidBoolean));
     }
 
     #[test]
@@ -397,6 +396,9 @@ Some output after"#;
 
         let result = normalize_input(&field, "staging");
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("Allowed values"));
+        assert!(matches!(
+            result.unwrap_err(),
+            SchemaError::InvalidChoice { .. }
+        ));
     }
 }

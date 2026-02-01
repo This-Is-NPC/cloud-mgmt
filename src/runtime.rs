@@ -1,7 +1,7 @@
-use std::error::Error;
 use std::path::Path;
 use std::process::Command;
 
+use crate::error::ScriptError;
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ScriptKind {
     Bash,
@@ -23,8 +23,8 @@ pub fn script_extensions() -> &'static [&'static str] {
     &["bash", "sh", "ps1", "py"]
 }
 
-pub fn command_for_script(script: &Path) -> Result<Command, Box<dyn Error>> {
-    let kind = script_kind(script).ok_or("Unsupported script type")?;
+pub fn command_for_script(script: &Path) -> Result<Command, ScriptError> {
+    let kind = script_kind(script).ok_or(ScriptError::UnsupportedType)?;
     let mut command = match kind {
         ScriptKind::Bash => Command::new("bash"),
         ScriptKind::PowerShell => Command::new(powershell_program()),

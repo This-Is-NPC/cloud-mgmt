@@ -95,7 +95,7 @@ pub fn run(options: RunOptions) -> Result<(), Box<dyn Error>> {
             let entry =
                 history::error_entry(&workspace, &script_path, &options.args, err.to_string());
             let _ = history::record_entry(&workspace, &entry);
-            return Err(err);
+            return Err(Box::new(err));
         }
     }
 

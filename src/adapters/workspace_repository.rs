@@ -1,8 +1,8 @@
 use crate::domain::{extract_schema_block, parse_schema, Schema};
+use crate::error::{AppResult, ScriptError};
 use crate::ports::{ScriptRepository, WorkspaceEntry, WorkspaceEntryKind};
 use crate::runtime::{script_kind, ScriptKind};
 
-use std::error::Error;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -68,17 +68,17 @@ impl ScriptRepository for FsWorkspaceRepository {
         Ok(scripts)
     }
 
-    fn read_schema(&self, script: &Path) -> Result<Schema, Box<dyn Error>> {
-        let prefixes = match script_kind(script).ok_or("Unsupported script type")? {
-            ScriptKind::Bash => vec!["#"],
-            ScriptKind::PowerShell => vec!["#", ";"],
-            ScriptKind::Python => vec!["#"],
+    fn read_schema(&self, script: &Path) -> AppResult<Schema> {
+        let prefixes = match script_kind(script) {
+            Some(ScriptKind::Bash) => vec!["#"],
+            Some(ScriptKind::PowerShell) => vec!["#", ";"],
+            Some(ScriptKind::Python) => vec!["#"],
+            None => return Err(ScriptError::UnsupportedType.into()),
         };
 
         let contents = fs::read_to_string(script)?;
-        let block = extract_schema_block(&contents, &prefixes)
-            .map_err(|err| format!("Schema block not found: {}", err))?;
-        parse_schema(&block)
+        let block = extract_schema_block(&contents, &prefixes)?;
+        Ok(parse_schema(&block)?)
     }
 }
 

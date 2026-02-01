@@ -1,6 +1,6 @@
 use crate::domain::Schema;
+use crate::error::AppResult;
 use crate::ports::{ScriptRepository, ScriptRunOutput, ScriptRunner, WorkspaceEntry};
-use std::error::Error;
 use std::io;
 use std::path::Path;
 
@@ -18,15 +18,11 @@ impl ScriptService {
         self.repo.list_entries(dir)
     }
 
-    pub fn load_schema(&self, script: &Path) -> Result<Schema, Box<dyn Error>> {
+    pub fn load_schema(&self, script: &Path) -> AppResult<Schema> {
         self.repo.read_schema(script)
     }
 
-    pub fn run_script(
-        &self,
-        script: &Path,
-        args: &[String],
-    ) -> Result<ScriptRunOutput, Box<dyn Error>> {
+    pub fn run_script(&self, script: &Path, args: &[String]) -> AppResult<ScriptRunOutput> {
         self.runner.run(script, args)
     }
 }

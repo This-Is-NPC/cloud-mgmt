@@ -55,7 +55,7 @@ pub fn run(options: DoctorOptions) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn print_required(label: &str, result: Result<(), Box<dyn Error>>) -> bool {
+fn print_required<E: std::fmt::Display>(label: &str, result: Result<(), E>) -> bool {
     match result {
         Ok(()) => {
             println!("  {}: OK", label);
@@ -68,7 +68,7 @@ fn print_required(label: &str, result: Result<(), Box<dyn Error>>) -> bool {
     }
 }
 
-fn print_optional(label: &str, result: Result<(), Box<dyn Error>>) {
+fn print_optional<E: std::fmt::Display>(label: &str, result: Result<(), E>) {
     match result {
         Ok(()) => {
             println!("  {}: OK", label);
