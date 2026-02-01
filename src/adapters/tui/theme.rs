@@ -9,6 +9,44 @@ use std::path::{Path, PathBuf};
 pub(crate) const BRAND_GRADIENT_START: (u8, u8, u8) = (245, 170, 80);
 pub(crate) const BRAND_GRADIENT_END: (u8, u8, u8) = (205, 85, 85);
 
+const DEFAULT_THEME_TOML: &str =
+    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/themes/default.toml"));
+
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct BuiltinTheme {
+    pub name: &'static str,
+    pub contents: &'static str,
+}
+
+pub(crate) const BUILTIN_THEMES: &[BuiltinTheme] = &[
+    BuiltinTheme {
+        name: "default",
+        contents: DEFAULT_THEME_TOML,
+    },
+    BuiltinTheme {
+        name: "dracula",
+        contents: include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/themes/dracula.toml")),
+    },
+    BuiltinTheme {
+        name: "catppuccin-mocha",
+        contents: include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/themes/catppuccin-mocha.toml"
+        )),
+    },
+    BuiltinTheme {
+        name: "nord",
+        contents: include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/themes/nord.toml")),
+    },
+    BuiltinTheme {
+        name: "solarized-dark",
+        contents: include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/themes/solarized-dark.toml"
+        )),
+    },
+];
+
 #[derive(Debug, Clone, Deserialize)]
 pub(crate) struct Theme {
     pub meta: ThemeMeta,
@@ -190,6 +228,10 @@ impl Theme {
 }
 
 pub(crate) fn default_theme() -> Theme {
+    load_theme_from_str(DEFAULT_THEME_TOML).unwrap_or_else(|_| fallback_default_theme())
+}
+
+fn fallback_default_theme() -> Theme {
     Theme {
         meta: ThemeMeta {
             name: "Omakure Default".to_string(),
@@ -225,15 +267,32 @@ pub(crate) fn default_theme() -> Theme {
 }
 
 pub(crate) fn load_theme(theme_name: Option<&str>, theme_dir: Option<&Path>) -> Theme {
-    match (theme_name, theme_dir) {
-        (Some(name), Some(dir)) => {
+    if let Some(name) = theme_name {
+        if let Some(dir) = theme_dir {
             if let Some(theme) = load_theme_from_name(name, dir) {
                 return theme;
             }
-            default_theme()
         }
-        _ => default_theme(),
+        if let Some(theme) = load_theme_from_builtin(name) {
+            return theme;
+        }
     }
+    default_theme()
+}
+
+pub(crate) fn builtin_theme_names() -> Vec<&'static str> {
+    BUILTIN_THEMES.iter().map(|theme| theme.name).collect()
+}
+
+pub(crate) fn builtin_theme_contents(name: &str) -> Option<&'static str> {
+    BUILTIN_THEMES
+        .iter()
+        .find(|theme| theme.name == name)
+        .map(|theme| theme.contents)
+}
+
+pub(crate) fn load_theme_from_builtin(name: &str) -> Option<Theme> {
+    builtin_theme_contents(name).and_then(|contents| load_theme_from_str(contents).ok())
 }
 
 pub(crate) fn load_theme_from_name(name: &str, theme_dir: &Path) -> Option<Theme> {
