@@ -1,20 +1,20 @@
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
-use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
 use ratatui::Frame;
 
 use super::super::app::{App, ExecutionStatus};
+use super::super::theme::Theme;
 use super::common::status_label_and_style;
 use crate::history;
 
-pub(crate) fn render_run_result(frame: &mut Frame, area: Rect, app: &mut App) {
+pub(crate) fn render_run_result(frame: &mut Frame, area: Rect, app: &mut App, theme: &Theme) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Min(3), Constraint::Length(2)])
         .split(area);
 
-    let lines = render_lines(app);
+    let lines = render_lines(app, theme);
     let view_height = chunks[0].height.saturating_sub(2) as usize;
     let max_scroll = lines.len().saturating_sub(view_height);
     if max_scroll == 0 {
@@ -34,11 +34,11 @@ pub(crate) fn render_run_result(frame: &mut Frame, area: Rect, app: &mut App) {
     frame.render_widget(output, chunks[0]);
 
     let footer = Paragraph::new("Up/Down to scroll, PgUp/PgDn, Enter/Esc to return, h for history")
-        .style(Style::default().fg(Color::Gray));
+        .style(theme.text_secondary());
     frame.render_widget(footer, chunks[1]);
 }
 
-fn render_lines(app: &App) -> Vec<Line<'static>> {
+fn render_lines(app: &App, theme: &Theme) -> Vec<Line<'static>> {
     let mut lines = Vec::new();
     let entry = match app.history.entries.first() {
         Some(entry) => entry,
@@ -55,7 +55,7 @@ fn render_lines(app: &App) -> Vec<Line<'static>> {
         entry.args.join(" ")
     };
     let status = ExecutionStatus::from_history(entry);
-    let (status_label, status_style) = status_label_and_style(&status);
+    let (status_label, status_style) = status_label_and_style(&status, theme);
     lines.push(Line::from(format!("Script: {}", name)));
     lines.push(Line::from(format!("Args: {}", args)));
     lines.push(Line::from(vec![

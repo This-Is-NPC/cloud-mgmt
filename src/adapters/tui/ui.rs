@@ -6,7 +6,6 @@ use ratatui::Frame;
 
 use super::app::{App, Screen};
 use super::theme::Theme;
-use super::theme::{BRAND_GRADIENT_END, BRAND_GRADIENT_START};
 use super::widgets::{
     environment, envs, error as error_widget, field_input, history, loading as loading_widget,
     run_result, running, schema, scripts, search,
@@ -15,12 +14,12 @@ use super::widgets::{
 pub(crate) fn render_ui(frame: &mut Frame, app: &mut App, theme: &Theme) {
     match app.screen {
         Screen::ScriptSelect => render_script_select(frame, app, theme),
-        Screen::Search => search::render_search(frame, frame.size(), app),
-        Screen::Environments => envs::render_envs(frame, frame.size(), app),
-        Screen::FieldInput => field_input::render_field_input(frame, frame.size(), app),
-        Screen::History => history::render_history(frame, frame.size(), app),
+        Screen::Search => search::render_search(frame, frame.size(), app, theme),
+        Screen::Environments => envs::render_envs(frame, frame.size(), app, theme),
+        Screen::FieldInput => field_input::render_field_input(frame, frame.size(), app, theme),
+        Screen::History => history::render_history(frame, frame.size(), app, theme),
         Screen::Running => running::render_running(frame, frame.size(), app),
-        Screen::RunResult => run_result::render_run_result(frame, frame.size(), app),
+        Screen::RunResult => run_result::render_run_result(frame, frame.size(), app, theme),
         Screen::Error => render_error(frame, app, theme),
     }
 }
@@ -31,7 +30,6 @@ pub(crate) fn render_loading(frame: &mut Frame, theme: &Theme) {
 }
 
 fn render_script_select(frame: &mut Frame, app: &mut App, theme: &Theme) {
-    let _ = theme;
     let (info_title, info_lines) = environment::status_info(
         &app.workspace,
         app.navigation.widget.as_ref(),
@@ -42,7 +40,7 @@ fn render_script_select(frame: &mut Frame, app: &mut App, theme: &Theme) {
 
     let outer = Block::default()
         .borders(Borders::ALL)
-        .title(omakure_title_line());
+        .title(omakure_title_line(theme));
     let inner = outer.inner(frame.size());
     frame.render_widget(outer, frame.size());
 
@@ -80,6 +78,7 @@ fn render_script_select(frame: &mut Frame, app: &mut App, theme: &Theme) {
             &app.navigation.current_dir,
             &app.navigation.entries,
             &mut app.navigation.list_state,
+            theme,
         );
         let schema_title = schema_title(app);
         schema::render_schema_preview(
@@ -88,6 +87,7 @@ fn render_script_select(frame: &mut Frame, app: &mut App, theme: &Theme) {
             &schema_title,
             app.navigation.schema_preview.as_ref(),
             app.navigation.schema_preview_error.as_deref(),
+            theme,
         );
     } else {
         scripts::render_scripts(
@@ -97,6 +97,7 @@ fn render_script_select(frame: &mut Frame, app: &mut App, theme: &Theme) {
             &app.navigation.current_dir,
             &app.navigation.entries,
             &mut app.navigation.list_state,
+            theme,
         );
     }
 
@@ -117,17 +118,16 @@ fn render_script_select(frame: &mut Frame, app: &mut App, theme: &Theme) {
                     .to_string();
         }
     }
-    let footer = Paragraph::new(footer_text).style(Style::default().fg(Color::Gray));
+    let footer = Paragraph::new(footer_text).style(theme.text_secondary());
     frame.render_widget(footer, chunks[2]);
 }
 
 fn render_error(frame: &mut Frame, app: &mut App, theme: &Theme) {
-    let _ = theme;
     let message = app
         .error_message
         .as_deref()
         .unwrap_or("Unknown error while loading schema");
-    error_widget::render_error(frame, frame.size(), message);
+    error_widget::render_error(frame, frame.size(), message, theme);
 }
 
 fn schema_title(app: &App) -> String {
@@ -146,11 +146,17 @@ fn schema_title(app: &App) -> String {
     format!("Schema: {}", name)
 }
 
-fn omakure_title_line() -> Line<'static> {
-    gradient_line("omakure", BRAND_GRADIENT_START, BRAND_GRADIENT_END)
+fn omakure_title_line(theme: &Theme) -> Line<'static> {
+    gradient_line(
+        "omakure",
+        theme.brand.gradient_start.color(),
+        theme.brand.gradient_end.color(),
+    )
 }
 
-fn gradient_line(text: &str, start: (u8, u8, u8), end: (u8, u8, u8)) -> Line<'static> {
+fn gradient_line(text: &str, start: Color, end: Color) -> Line<'static> {
+    let start = color_to_tuple(start);
+    let end = color_to_tuple(end);
     let len = text.chars().count().max(1);
     let spans = text
         .chars()
@@ -178,4 +184,28 @@ fn lerp_color(start: (u8, u8, u8), end: (u8, u8, u8), t: f32) -> Color {
         lerp(start.1, end.1),
         lerp(start.2, end.2),
     )
+}
+
+fn color_to_tuple(color: Color) -> (u8, u8, u8) {
+    match color {
+        Color::Rgb(r, g, b) => (r, g, b),
+        Color::Black => (0, 0, 0),
+        Color::Red => (255, 0, 0),
+        Color::Green => (0, 255, 0),
+        Color::Yellow => (255, 255, 0),
+        Color::Blue => (0, 0, 255),
+        Color::Magenta => (255, 0, 255),
+        Color::Cyan => (0, 255, 255),
+        Color::Gray => (128, 128, 128),
+        Color::DarkGray => (64, 64, 64),
+        Color::LightRed => (255, 128, 128),
+        Color::LightGreen => (128, 255, 128),
+        Color::LightYellow => (255, 255, 128),
+        Color::LightBlue => (128, 128, 255),
+        Color::LightMagenta => (255, 128, 255),
+        Color::LightCyan => (128, 255, 255),
+        Color::White => (255, 255, 255),
+        Color::Indexed(value) => (value, value, value),
+        Color::Reset => (255, 255, 255),
+    }
 }

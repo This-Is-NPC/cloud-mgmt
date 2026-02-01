@@ -1,14 +1,14 @@
 use ratatui::layout::Rect;
-use ratatui::style::{Color, Modifier, Style};
+use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
 use ratatui::Frame;
 
 use super::super::app::App;
-use super::super::theme;
+use super::super::theme::Theme;
 use super::common::standard_screen_layout;
 
-pub(crate) fn render_field_input(frame: &mut Frame, area: Rect, app: &mut App) {
+pub(crate) fn render_field_input(frame: &mut Frame, area: Rect, app: &mut App, theme: &Theme) {
     let script_name = app
         .field_input
         .selected_script
@@ -17,7 +17,7 @@ pub(crate) fn render_field_input(frame: &mut Frame, area: Rect, app: &mut App) {
         .and_then(|name| name.to_str())
         .unwrap_or("<unknown>");
 
-    let label_style = Style::default().fg(Color::Gray);
+    let label_style = theme.text_secondary();
     let value_style = Style::default();
     let mut header_lines = vec![
         Line::from(vec![
@@ -39,7 +39,7 @@ pub(crate) fn render_field_input(frame: &mut Frame, area: Rect, app: &mut App) {
     if let Some(message) = &app.field_input.error {
         header_lines.push(Line::from(Span::styled(
             format!("Error: {}", message),
-            Style::default().fg(Color::Red),
+            Style::default().fg(theme.semantic.error.color()),
         )));
     }
     let header_height = header_lines.len() as u16 + 2;
@@ -48,17 +48,17 @@ pub(crate) fn render_field_input(frame: &mut Frame, area: Rect, app: &mut App) {
         .wrap(Wrap { trim: true });
 
     let footer = Paragraph::new("Tab/Shift+Tab to move, Enter to run, Ctrl+B back, Esc quit")
-        .style(Style::default().fg(Color::Gray));
+        .style(theme.text_secondary());
 
     let footer_height = 1u16;
     let chunks = standard_screen_layout(area, header_height, footer_height);
 
     frame.render_widget(header, chunks[0]);
-    render_field_boxes(frame, chunks[1], app);
+    render_field_boxes(frame, chunks[1], app, theme);
     frame.render_widget(footer, chunks[2]);
 }
 
-fn render_field_boxes(frame: &mut Frame, area: Rect, app: &App) {
+fn render_field_boxes(frame: &mut Frame, area: Rect, app: &App, theme: &Theme) {
     let outer = Block::default().borders(Borders::ALL).title("Fields");
     let inner = outer.inner(area);
     frame.render_widget(outer, area);
@@ -91,10 +91,10 @@ fn render_field_boxes(frame: &mut Frame, area: Rect, app: &App) {
         let is_selected = idx == app.field_input.field_index;
         let border_style = if is_selected {
             Style::default()
-                .fg(theme::brand_accent())
+                .fg(theme.ui.border_active.color())
                 .add_modifier(Modifier::BOLD)
         } else {
-            Style::default().fg(Color::Gray)
+            Style::default().fg(theme.ui.border_inactive.color())
         };
         let value = app
             .field_input
@@ -113,18 +113,18 @@ fn render_field_boxes(frame: &mut Frame, area: Rect, app: &App) {
         };
         let prompt = field.prompt.as_deref().unwrap_or(&field.name);
         let value_style = if is_selected {
-            Style::default().fg(Color::Cyan)
+            Style::default().fg(theme.semantic.info.color())
         } else {
-            Style::default().fg(Color::Gray)
+            theme.text_secondary()
         };
 
         let lines = vec![
             Line::from(vec![
-                Span::styled("Prompt: ", Style::default().fg(Color::Gray)),
+                Span::styled("Prompt: ", theme.text_secondary()),
                 Span::raw(prompt),
             ]),
             Line::from(vec![
-                Span::styled("Value: ", Style::default().fg(Color::Gray)),
+                Span::styled("Value: ", theme.text_secondary()),
                 Span::styled(value_text, value_style),
             ]),
         ];

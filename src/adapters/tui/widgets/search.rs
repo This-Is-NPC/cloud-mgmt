@@ -1,28 +1,27 @@
 use ratatui::layout::Rect;
-use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, List, ListItem, Paragraph, Wrap};
 use ratatui::Frame;
 
 use super::super::app::{App, SchemaFieldPreview, SchemaPreview};
-use super::super::theme;
+use super::super::theme::{self, Theme};
 use super::common::{horizontal_split, standard_screen_layout};
 use super::schema;
 use crate::search_index::{SearchDetails, SearchResult, SearchStatus};
 
-pub(crate) fn render_search(frame: &mut Frame, area: Rect, app: &mut App) {
+pub(crate) fn render_search(frame: &mut Frame, area: Rect, app: &mut App, theme: &Theme) {
     let outer = Block::default().borders(Borders::ALL).title("Search");
     let inner = outer.inner(area);
     frame.render_widget(outer, area);
 
     let chunks = standard_screen_layout(inner, 3, 2);
 
-    render_search_input(frame, chunks[0], app);
-    render_search_body(frame, chunks[1], app);
-    render_search_footer(frame, chunks[2], app);
+    render_search_input(frame, chunks[0], app, theme);
+    render_search_body(frame, chunks[1], app, theme);
+    render_search_footer(frame, chunks[2], app, theme);
 }
 
-fn render_search_input(frame: &mut Frame, area: Rect, app: &App) {
+fn render_search_input(frame: &mut Frame, area: Rect, app: &App, theme: &Theme) {
     let title = match &app.search.status {
         SearchStatus::Indexing => "Search (indexing...)".to_string(),
         SearchStatus::Ready { script_count } => format!("Search ({} scripts)", script_count),
@@ -30,10 +29,7 @@ fn render_search_input(frame: &mut Frame, area: Rect, app: &App) {
         SearchStatus::Idle => "Search".to_string(),
     };
     let query_line = if app.search.query.is_empty() {
-        Line::from(Span::styled(
-            "Type to search...",
-            Style::default().fg(Color::DarkGray),
-        ))
+        Line::from(Span::styled("Type to search...", theme.text_muted()))
     } else {
         Line::from(app.search.query.clone())
     };
@@ -43,7 +39,7 @@ fn render_search_input(frame: &mut Frame, area: Rect, app: &App) {
     frame.render_widget(input, area);
 }
 
-fn render_search_body(frame: &mut Frame, area: Rect, app: &mut App) {
+fn render_search_body(frame: &mut Frame, area: Rect, app: &mut App, theme: &Theme) {
     if app.search.results.is_empty() {
         let message = if let Some(err) = &app.search.error {
             format!("Search error: {}", err)
@@ -61,11 +57,11 @@ fn render_search_body(frame: &mut Frame, area: Rect, app: &mut App) {
 
     let body_chunks = horizontal_split(area, 50);
 
-    render_search_results(frame, body_chunks[0], app);
-    render_search_schema(frame, body_chunks[1], app);
+    render_search_results(frame, body_chunks[0], app, theme);
+    render_search_schema(frame, body_chunks[1], app, theme);
 }
 
-fn render_search_results(frame: &mut Frame, area: Rect, app: &mut App) {
+fn render_search_results(frame: &mut Frame, area: Rect, app: &mut App, theme: &Theme) {
     let items: Vec<ListItem> = app
         .search
         .results
@@ -75,13 +71,13 @@ fn render_search_results(frame: &mut Frame, area: Rect, app: &mut App) {
 
     let list = List::new(items)
         .block(Block::default().borders(Borders::ALL).title("Results"))
-        .highlight_style(theme::selection_style())
+        .highlight_style(theme.selection_style())
         .highlight_symbol(theme::selection_symbol_str());
 
     frame.render_stateful_widget(list, area, &mut app.search.list_state);
 }
 
-fn render_search_schema(frame: &mut Frame, area: Rect, app: &App) {
+fn render_search_schema(frame: &mut Frame, area: Rect, app: &App, theme: &Theme) {
     let selected = app
         .search
         .results
@@ -98,10 +94,10 @@ fn render_search_schema(frame: &mut Frame, area: Rect, app: &App) {
         ),
         _ => (None, None),
     };
-    schema::render_schema_preview(frame, area, &title, preview.as_ref(), error);
+    schema::render_schema_preview(frame, area, &title, preview.as_ref(), error, theme);
 }
 
-fn render_search_footer(frame: &mut Frame, area: Rect, app: &App) {
+fn render_search_footer(frame: &mut Frame, area: Rect, app: &App, theme: &Theme) {
     let hint = match &app.search.status {
         SearchStatus::Indexing => {
             "Type to search, Enter open, Alt+E envs, Esc back. Indexing in background."
@@ -109,7 +105,7 @@ fn render_search_footer(frame: &mut Frame, area: Rect, app: &App) {
         SearchStatus::Error(_) => "Type to search, Enter open, Alt+E envs, Esc back. Index error.",
         _ => "Type to search, Enter open, Alt+E envs, Esc back",
     };
-    let footer = Paragraph::new(hint).style(Style::default().fg(Color::Gray));
+    let footer = Paragraph::new(hint).style(theme.text_secondary());
     frame.render_widget(footer, area);
 }
 

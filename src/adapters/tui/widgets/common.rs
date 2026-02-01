@@ -1,16 +1,17 @@
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
-use ratatui::style::{Color, Style};
+use ratatui::style::Style;
 
 use super::super::app::ExecutionStatus;
+use super::super::theme::Theme;
 
-pub(crate) fn status_label_and_style(status: &ExecutionStatus) -> (String, Style) {
+pub(crate) fn status_label_and_style(status: &ExecutionStatus, theme: &Theme) -> (String, Style) {
     match status {
-        ExecutionStatus::Success => ("OK".to_string(), Style::default().fg(Color::Green)),
+        ExecutionStatus::Success => ("OK".to_string(), theme.status_ok_style()),
         ExecutionStatus::Failed(code) => match code {
-            Some(code) => (format!("FAIL ({})", code), Style::default().fg(Color::Red)),
-            None => ("FAIL".to_string(), Style::default().fg(Color::Red)),
+            Some(code) => (format!("FAIL ({})", code), theme.status_fail_style()),
+            None => ("FAIL".to_string(), theme.status_fail_style()),
         },
-        ExecutionStatus::Error => ("ERROR".to_string(), Style::default().fg(Color::Yellow)),
+        ExecutionStatus::Error => ("ERROR".to_string(), theme.status_error_style()),
     }
 }
 

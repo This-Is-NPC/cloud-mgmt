@@ -640,13 +640,10 @@ impl<'a> App<'a> {
                         ratatui::text::Span::styled(
                             key,
                             ratatui::style::Style::default()
-                                .fg(ratatui::style::Color::Yellow)
+                                .fg(self.theme.semantic.warning.color())
                                 .add_modifier(ratatui::style::Modifier::BOLD),
                         ),
-                        ratatui::text::Span::styled(
-                            " = ",
-                            ratatui::style::Style::default().fg(ratatui::style::Color::Gray),
-                        ),
+                        ratatui::text::Span::styled(" = ", self.theme.text_secondary()),
                         ratatui::text::Span::raw(value),
                     ]);
                     lines.push(line);
@@ -655,7 +652,7 @@ impl<'a> App<'a> {
                     self.environment.preview_lines =
                         vec![ratatui::text::Line::from(ratatui::text::Span::styled(
                             "No entries found.",
-                            ratatui::style::Style::default().fg(ratatui::style::Color::Gray),
+                            self.theme.text_secondary(),
                         ))];
                 } else {
                     self.environment.preview_lines = lines;

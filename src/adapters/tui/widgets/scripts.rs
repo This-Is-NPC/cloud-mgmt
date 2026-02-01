@@ -5,7 +5,7 @@ use ratatui::widgets::{Block, Borders, List, ListItem, ListState, Paragraph, Wra
 use ratatui::Frame;
 use std::path::Path;
 
-use super::super::theme;
+use super::super::theme::Theme;
 use crate::ports::{WorkspaceEntry, WorkspaceEntryKind};
 use crate::workspace::Workspace;
 
@@ -16,6 +16,7 @@ pub(crate) fn render_scripts(
     current_dir: &Path,
     entries: &[WorkspaceEntry],
     list_state: &mut ListState,
+    theme: &Theme,
 ) {
     if entries.is_empty() {
         let relative = current_dir
@@ -51,8 +52,8 @@ pub(crate) fn render_scripts(
 
         let list = List::new(items)
             .block(Block::default().borders(Borders::ALL).title("Entries"))
-            .highlight_style(theme::selection_style())
-            .highlight_symbol(theme::selection_symbol_str());
+            .highlight_style(theme.selection_style())
+            .highlight_symbol(super::super::theme::selection_symbol_str());
 
         frame.render_stateful_widget(list, area, list_state);
     }

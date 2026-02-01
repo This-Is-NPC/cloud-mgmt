@@ -1,10 +1,11 @@
 use ratatui::layout::Rect;
-use ratatui::style::{Color, Modifier, Style};
+use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
 use ratatui::Frame;
 
 use super::super::app::{QueuePreview, SchemaPreview};
+use super::super::theme::Theme;
 
 pub(crate) fn render_schema_preview(
     frame: &mut Frame,
@@ -12,20 +13,27 @@ pub(crate) fn render_schema_preview(
     title: &str,
     preview: Option<&SchemaPreview>,
     error: Option<&str>,
+    theme: &Theme,
 ) {
-    let lines = build_lines(preview, error);
+    let lines = build_lines(preview, error, theme);
     let panel = Paragraph::new(lines)
         .block(Block::default().borders(Borders::ALL).title(title))
         .wrap(Wrap { trim: false });
     frame.render_widget(panel, area);
 }
 
-fn build_lines(preview: Option<&SchemaPreview>, error: Option<&str>) -> Vec<Line<'static>> {
+fn build_lines(
+    preview: Option<&SchemaPreview>,
+    error: Option<&str>,
+    theme: &Theme,
+) -> Vec<Line<'static>> {
     if let Some(message) = error {
         return vec![
             Line::from(Span::styled(
                 "Failed to load schema.",
-                Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+                Style::default()
+                    .fg(theme.semantic.error.color())
+                    .add_modifier(Modifier::BOLD),
             )),
             Line::from(message.to_string()),
         ];
@@ -36,7 +44,7 @@ fn build_lines(preview: Option<&SchemaPreview>, error: Option<&str>) -> Vec<Line
         None => {
             return vec![Line::from(Span::styled(
                 "Select a script to preview its schema.",
-                Style::default().fg(Color::Gray),
+                theme.text_muted(),
             ))];
         }
     };
@@ -53,14 +61,11 @@ fn build_lines(preview: Option<&SchemaPreview>, error: Option<&str>) -> Vec<Line
     }
     lines.push(Line::from(""));
     if preview.fields.is_empty() {
-        lines.push(Line::from(Span::styled(
-            "(no fields)",
-            Style::default().fg(Color::Gray),
-        )));
+        lines.push(Line::from(Span::styled("(no fields)", theme.text_muted())));
     } else {
         lines.push(Line::from(Span::styled(
             format!("Fields: {}", preview.fields.len()),
-            Style::default().fg(Color::Cyan),
+            Style::default().fg(theme.semantic.info.color()),
         )));
         for field in &preview.fields {
             let required_label = if field.required {
@@ -69,20 +74,23 @@ fn build_lines(preview: Option<&SchemaPreview>, error: Option<&str>) -> Vec<Line
                 "optional"
             };
             let required_style = if field.required {
-                Style::default().fg(Color::Red)
+                Style::default().fg(theme.semantic.error.color())
             } else {
-                Style::default().fg(Color::Green)
+                Style::default().fg(theme.semantic.success.color())
             };
             lines.push(Line::from(vec![
                 Span::raw("- "),
                 Span::styled(
                     field.name.clone(),
                     Style::default()
-                        .fg(Color::Yellow)
+                        .fg(theme.semantic.warning.color())
                         .add_modifier(Modifier::BOLD),
                 ),
                 Span::raw(" ["),
-                Span::styled(field.kind.clone(), Style::default().fg(Color::Cyan)),
+                Span::styled(
+                    field.kind.clone(),
+                    Style::default().fg(theme.semantic.info.color()),
+                ),
                 Span::raw(", "),
                 Span::styled(required_label, required_style),
                 Span::raw("]"),
@@ -99,7 +107,7 @@ fn build_lines(preview: Option<&SchemaPreview>, error: Option<&str>) -> Vec<Line
         lines.push(Line::from(""));
         lines.push(Line::from(Span::styled(
             format!("Outputs: {}", preview.outputs.len()),
-            Style::default().fg(Color::Cyan),
+            Style::default().fg(theme.semantic.info.color()),
         )));
         for output in &preview.outputs {
             lines.push(Line::from(vec![
@@ -107,11 +115,14 @@ fn build_lines(preview: Option<&SchemaPreview>, error: Option<&str>) -> Vec<Line
                 Span::styled(
                     output.name.clone(),
                     Style::default()
-                        .fg(Color::Yellow)
+                        .fg(theme.semantic.warning.color())
                         .add_modifier(Modifier::BOLD),
                 ),
                 Span::raw(" ["),
-                Span::styled(output.kind.clone(), Style::default().fg(Color::Cyan)),
+                Span::styled(
+                    output.kind.clone(),
+                    Style::default().fg(theme.semantic.info.color()),
+                ),
                 Span::raw("]"),
             ]));
         }
@@ -123,7 +134,7 @@ fn build_lines(preview: Option<&SchemaPreview>, error: Option<&str>) -> Vec<Line
             QueuePreview::Matrix { values } => {
                 lines.push(Line::from(Span::styled(
                     format!("Queue: Matrix ({})", values.len()),
-                    Style::default().fg(Color::Cyan),
+                    Style::default().fg(theme.semantic.info.color()),
                 )));
                 for entry in values {
                     lines.push(Line::from(vec![
@@ -131,7 +142,7 @@ fn build_lines(preview: Option<&SchemaPreview>, error: Option<&str>) -> Vec<Line
                         Span::styled(
                             entry.name.clone(),
                             Style::default()
-                                .fg(Color::Yellow)
+                                .fg(theme.semantic.warning.color())
                                 .add_modifier(Modifier::BOLD),
                         ),
                         Span::raw(": "),
@@ -142,7 +153,7 @@ fn build_lines(preview: Option<&SchemaPreview>, error: Option<&str>) -> Vec<Line
             QueuePreview::Cases { cases } => {
                 lines.push(Line::from(Span::styled(
                     format!("Queue: Cases ({})", cases.len()),
-                    Style::default().fg(Color::Cyan),
+                    Style::default().fg(theme.semantic.info.color()),
                 )));
                 for (idx, case) in cases.iter().enumerate() {
                     let label = case
@@ -154,14 +165,17 @@ fn build_lines(preview: Option<&SchemaPreview>, error: Option<&str>) -> Vec<Line
                         Span::styled(
                             label,
                             Style::default()
-                                .fg(Color::Yellow)
+                                .fg(theme.semantic.warning.color())
                                 .add_modifier(Modifier::BOLD),
                         ),
                     ]));
                     for value in &case.values {
                         lines.push(Line::from(vec![
                             Span::raw("    "),
-                            Span::styled(value.name.clone(), Style::default().fg(Color::Yellow)),
+                            Span::styled(
+                                value.name.clone(),
+                                Style::default().fg(theme.semantic.warning.color()),
+                            ),
                             Span::raw(" = "),
                             Span::raw(value.value.clone()),
                         ]));

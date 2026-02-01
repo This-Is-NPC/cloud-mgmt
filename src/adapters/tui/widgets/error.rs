@@ -1,12 +1,17 @@
 use ratatui::layout::Rect;
-use ratatui::style::{Color, Style};
+use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
 use ratatui::Frame;
 
-pub(crate) fn render_error(frame: &mut Frame, area: Rect, message: &str) {
+use super::super::theme::Theme;
+
+pub(crate) fn render_error(frame: &mut Frame, area: Rect, message: &str, theme: &Theme) {
     let lines = vec![
-        Line::from(Span::styled(message, Style::default().fg(Color::Red))),
+        Line::from(Span::styled(
+            message,
+            Style::default().fg(theme.semantic.error.color()),
+        )),
         Line::from(""),
         Line::from("Press Enter to return, Esc to quit"),
     ];

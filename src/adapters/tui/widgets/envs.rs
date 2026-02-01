@@ -1,19 +1,19 @@
 use ratatui::layout::Rect;
-use ratatui::style::{Color, Style};
+use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, List, ListItem, Paragraph, Wrap};
 use ratatui::Frame;
 
 use super::super::app::App;
-use super::super::theme;
+use super::super::theme::{self, Theme};
 use super::common::{horizontal_split, standard_screen_layout};
 
-fn build_preview_lines(app: &App) -> Vec<Line<'static>> {
+fn build_preview_lines(app: &App, theme: &Theme) -> Vec<Line<'static>> {
     if let Some(err) = app.environment.preview_error.as_deref() {
         return vec![
             Line::from(Span::styled(
                 "Failed to load env file.",
-                Style::default().fg(Color::Red),
+                Style::default().fg(theme.semantic.error.color()),
             )),
             Line::from(err.to_string()),
         ];
@@ -22,21 +22,21 @@ fn build_preview_lines(app: &App) -> Vec<Line<'static>> {
     if app.environment.entries.is_empty() {
         return vec![Line::from(Span::styled(
             "No environment files found.",
-            Style::default().fg(Color::Gray),
+            theme.text_muted(),
         ))];
     }
 
     if app.environment.preview_lines.is_empty() {
         return vec![Line::from(Span::styled(
             "Select a file to preview.",
-            Style::default().fg(Color::Gray),
+            theme.text_muted(),
         ))];
     }
 
     app.environment.preview_lines.clone()
 }
 
-pub(crate) fn render_envs(frame: &mut Frame, area: Rect, app: &mut App) {
+pub(crate) fn render_envs(frame: &mut Frame, area: Rect, app: &mut App, theme: &Theme) {
     let outer = Block::default().borders(Borders::ALL).title("Environments");
     let inner = outer.inner(area);
     frame.render_widget(outer, area);
@@ -67,7 +67,7 @@ pub(crate) fn render_envs(frame: &mut Frame, area: Rect, app: &mut App) {
     info_lines.push(Line::from(format!("Defaults: {}", defaults_count)));
     if let Some(err) = &app.environment.error {
         info_lines.push(Line::from(vec![
-            Span::styled("Error: ", Style::default().fg(Color::Red)),
+            Span::styled("Error: ", Style::default().fg(theme.semantic.error.color())),
             Span::raw(err),
         ]));
     }
@@ -111,12 +111,12 @@ pub(crate) fn render_envs(frame: &mut Frame, area: Rect, app: &mut App) {
 
         let list = List::new(items)
             .block(Block::default().borders(Borders::ALL).title("Files"))
-            .highlight_style(theme::selection_style())
+            .highlight_style(theme.selection_style())
             .highlight_symbol(theme::selection_symbol_str());
         frame.render_stateful_widget(list, files_chunks[0], &mut app.environment.list_state);
     }
 
-    let preview_lines = build_preview_lines(app);
+    let preview_lines = build_preview_lines(app, theme);
     let preview = Paragraph::new(preview_lines)
         .block(Block::default().borders(Borders::ALL).title("Preview"))
         .wrap(Wrap { trim: false })
@@ -126,6 +126,6 @@ pub(crate) fn render_envs(frame: &mut Frame, area: Rect, app: &mut App) {
     let footer = Paragraph::new(
         "Up/Down move, PgUp/PgDn scroll, Enter activate, d deactivate, r reload, Esc/q back",
     )
-    .style(Style::default().fg(Color::Gray));
+    .style(theme.text_secondary());
     frame.render_widget(footer, chunks[2]);
 }

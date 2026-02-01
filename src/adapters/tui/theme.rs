@@ -160,6 +160,10 @@ impl Theme {
         self.selection_style()
     }
 
+    pub(crate) fn selection_symbol(&self) -> Span<'static> {
+        Span::styled("> ", self.selection_style())
+    }
+
     pub(crate) fn text_primary(&self) -> Style {
         Style::default().fg(self.ui.text_primary.color())
     }

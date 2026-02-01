@@ -1,15 +1,15 @@
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
-use ratatui::style::{Color, Style};
+use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Cell, Paragraph, Row, Table, Wrap};
 use ratatui::Frame;
 
 use super::super::app::{App, ExecutionStatus, HistoryFocus};
-use super::super::theme;
+use super::super::theme::Theme;
 use super::common::status_label_and_style;
 use crate::history;
 
-pub(crate) fn render_history(frame: &mut Frame, area: Rect, app: &mut App) {
+pub(crate) fn render_history(frame: &mut Frame, area: Rect, app: &mut App, theme: &Theme) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Min(3), Constraint::Length(2)])
@@ -21,8 +21,8 @@ pub(crate) fn render_history(frame: &mut Frame, area: Rect, app: &mut App) {
         .constraints([Constraint::Length(list_width), Constraint::Min(10)])
         .split(chunks[0]);
 
-    render_history_list(frame, body_chunks[0], app);
-    render_history_output(frame, body_chunks[1], app);
+    render_history_list(frame, body_chunks[0], app, theme);
+    render_history_output(frame, body_chunks[1], app, theme);
 
     let footer_text = match app.history.focus {
         HistoryFocus::List => {
@@ -30,11 +30,11 @@ pub(crate) fn render_history(frame: &mut Frame, area: Rect, app: &mut App) {
         }
         HistoryFocus::Output => "Up/Down to scroll, PgUp/PgDn, Esc to return, q to go back",
     };
-    let footer = Paragraph::new(footer_text).style(Style::default().fg(Color::Gray));
+    let footer = Paragraph::new(footer_text).style(theme.text_secondary());
     frame.render_widget(footer, chunks[1]);
 }
 
-fn render_history_list(frame: &mut Frame, area: Rect, app: &mut App) {
+fn render_history_list(frame: &mut Frame, area: Rect, app: &mut App, theme: &Theme) {
     if app.history.entries.is_empty() {
         let empty = Paragraph::new("No executions yet.")
             .block(Block::default().borders(Borders::ALL).title("History"))
@@ -51,7 +51,7 @@ fn render_history_list(frame: &mut Frame, area: Rect, app: &mut App) {
             let name = app.display_path(&entry.script);
             let date = history::format_timestamp(entry.timestamp);
             let status = ExecutionStatus::from_history(entry);
-            let (status_label, status_style) = status_label_and_style(&status);
+            let (status_label, status_style) = status_label_and_style(&status, theme);
             Row::new(vec![
                 Cell::from(Span::styled(status_label, status_style)),
                 Cell::from(Span::raw(date)),
@@ -61,16 +61,16 @@ fn render_history_list(frame: &mut Frame, area: Rect, app: &mut App) {
         .collect();
 
     let header = Row::new(vec![
-        Cell::from(Span::styled("Status", Style::default().fg(Color::Gray))),
-        Cell::from(Span::styled("Date", Style::default().fg(Color::Gray))),
-        Cell::from(Span::styled("Script", Style::default().fg(Color::Gray))),
+        Cell::from(Span::styled("Status", theme.text_secondary())),
+        Cell::from(Span::styled("Date", theme.text_secondary())),
+        Cell::from(Span::styled("Script", theme.text_secondary())),
     ]);
     let highlight_style = match app.history.focus {
-        HistoryFocus::List => theme::selection_style(),
-        HistoryFocus::Output => Style::default().fg(Color::DarkGray),
+        HistoryFocus::List => theme.selection_style(),
+        HistoryFocus::Output => theme.text_muted(),
     };
     let highlight_symbol = if app.history.focus == HistoryFocus::List {
-        theme::selection_symbol()
+        theme.selection_symbol()
     } else {
         Span::styled("> ", highlight_style)
     };
@@ -90,7 +90,7 @@ fn render_history_list(frame: &mut Frame, area: Rect, app: &mut App) {
     frame.render_stateful_widget(table, area, &mut app.history.table_state);
 }
 
-fn render_history_output(frame: &mut Frame, area: Rect, app: &mut App) {
+fn render_history_output(frame: &mut Frame, area: Rect, app: &mut App, theme: &Theme) {
     let mut lines = Vec::new();
     if let Some(entry) = app.current_history_entry() {
         let name = app.display_path(&entry.script);
@@ -100,7 +100,7 @@ fn render_history_output(frame: &mut Frame, area: Rect, app: &mut App) {
             entry.args.join(" ")
         };
         let status = ExecutionStatus::from_history(entry);
-        let (status_label, status_style) = status_label_and_style(&status);
+        let (status_label, status_style) = status_label_and_style(&status, theme);
         lines.push(Line::from(format!("Script: {}", name)));
         lines.push(Line::from(format!("Args: {}", args)));
         lines.push(Line::from(vec![
@@ -128,7 +128,7 @@ fn render_history_output(frame: &mut Frame, area: Rect, app: &mut App) {
 
     let mut block = Block::default().borders(Borders::ALL).title("Output");
     if app.history.focus == HistoryFocus::Output {
-        let border_style = theme::selection_border_style();
+        let border_style = theme.selection_border_style();
         block = block.border_style(border_style).title_style(border_style);
     }
 
