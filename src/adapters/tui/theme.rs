@@ -180,10 +180,6 @@ impl Default for Theme {
 }
 
 impl Theme {
-    pub(crate) fn brand_accent(&self) -> Color {
-        self.brand.accent.color()
-    }
-
     pub(crate) fn selection_style(&self) -> Style {
         let mut style = Style::default()
             .fg(self.ui.selection_fg.color())
@@ -200,10 +196,6 @@ impl Theme {
 
     pub(crate) fn selection_symbol(&self) -> Span<'static> {
         Span::styled("> ", self.selection_style())
-    }
-
-    pub(crate) fn text_primary(&self) -> Style {
-        Style::default().fg(self.ui.text_primary.color())
     }
 
     pub(crate) fn text_secondary(&self) -> Style {
@@ -422,22 +414,6 @@ error = "#ffff00"
 "##;
         assert!(load_theme_from_str(toml).is_err());
     }
-}
-
-pub(crate) fn brand_accent() -> Color {
-    default_theme().brand_accent()
-}
-
-pub(crate) fn selection_style() -> Style {
-    default_theme().selection_style()
-}
-
-pub(crate) fn selection_border_style() -> Style {
-    default_theme().selection_border_style()
-}
-
-pub(crate) fn selection_symbol() -> Span<'static> {
-    Span::styled("> ", selection_style())
 }
 
 pub(crate) fn selection_symbol_str() -> &'static str {

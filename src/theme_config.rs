@@ -42,14 +42,6 @@ pub(crate) fn ensure_theme_layout() -> Result<ThemeLayout, Box<dyn Error>> {
     })
 }
 
-pub(crate) fn global_config_path() -> Option<PathBuf> {
-    config_dir().map(|dir| dir.join("config.toml"))
-}
-
-pub(crate) fn themes_dir() -> Option<PathBuf> {
-    config_dir().map(|dir| dir.join("themes"))
-}
-
 pub(crate) fn load_theme_name(path: &Path) -> Option<String> {
     let contents = fs::read_to_string(path).ok()?;
     let config: ThemeConfigFile = toml::from_str(&contents).ok()?;
