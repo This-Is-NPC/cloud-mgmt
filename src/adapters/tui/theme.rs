@@ -344,6 +344,86 @@ fn parse_hex_color(value: &str) -> Result<Color, ThemeParseError> {
     Ok(Color::Rgb(red, green, blue))
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn load_theme_from_str_parses_colors() {
+        let toml = r##"
+[meta]
+name = "Test Theme"
+variant = "dark"
+
+[brand]
+gradient_start = "#000000"
+gradient_end = "#ffffff"
+accent = "#ff0000"
+
+[semantic]
+success = "#00ff00"
+error = "#ff0000"
+warning = "#ffff00"
+info = "#00ffff"
+
+[ui]
+text_primary = "#ffffff"
+text_secondary = "#aaaaaa"
+text_muted = "#555555"
+border_active = "#123456"
+border_inactive = "#654321"
+selection_fg = "#abcdef"
+
+[status]
+ok = "#00ff00"
+fail = "#ff0000"
+error = "#ffff00"
+"##;
+        let theme = load_theme_from_str(toml).expect("theme should parse");
+        assert_eq!(theme.meta.name, "Test Theme");
+        assert_eq!(theme.brand.accent.color(), Color::Rgb(255, 0, 0));
+    }
+
+    #[test]
+    fn load_theme_falls_back_to_default() {
+        let theme = load_theme(Some("missing-theme"), None);
+        assert_eq!(theme.meta.name, "Omakure Default");
+    }
+
+    #[test]
+    fn load_theme_from_str_rejects_invalid_hex() {
+        let toml = r##"
+[meta]
+name = "Broken Theme"
+
+[brand]
+gradient_start = "#zzzzzz"
+gradient_end = "#ffffff"
+accent = "#ff0000"
+
+[semantic]
+success = "#00ff00"
+error = "#ff0000"
+warning = "#ffff00"
+info = "#00ffff"
+
+[ui]
+text_primary = "#ffffff"
+text_secondary = "#aaaaaa"
+text_muted = "#555555"
+border_active = "#123456"
+border_inactive = "#654321"
+selection_fg = "#abcdef"
+
+[status]
+ok = "#00ff00"
+fail = "#ff0000"
+error = "#ffff00"
+"##;
+        assert!(load_theme_from_str(toml).is_err());
+    }
+}
+
 pub(crate) fn brand_accent() -> Color {
     default_theme().brand_accent()
 }

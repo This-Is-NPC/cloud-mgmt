@@ -46,6 +46,19 @@ TUI notes:
 - Preview scroll: `PgUp` / `PgDn`, `Home` / `End`.
 - See `environments.md` for details.
 
+## Themes
+
+```bash
+omakure theme list
+omakure theme set <name>
+omakure theme preview <name>
+omakure theme path
+```
+
+- Global theme config: `~/.config/omakure/config.toml` with `[theme] name = "..."`.
+- Built-in themes are copied to `~/.config/omakure/themes/` on first use.
+- Workspace override: add `[theme] name = "..."` to `omakure.toml`.
+
 ## Omaken flavors
 
 ```bash
