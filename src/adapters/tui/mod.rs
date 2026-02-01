@@ -20,6 +20,7 @@ use std::io;
 use std::time::Duration;
 
 use crate::history;
+use crate::theme_config;
 use app::{App, Screen};
 use events::handle_key_event;
 use theme::load_theme;
@@ -48,7 +49,16 @@ pub fn run_app(
     service: &ScriptService,
     workspace: Workspace,
 ) -> Result<(), Box<dyn Error>> {
-    let theme = load_theme(None, None);
+    let theme_layout = theme_config::ensure_theme_layout().ok();
+    let theme_dir = theme_layout
+        .as_ref()
+        .map(|layout| layout.themes_dir.as_path());
+    let global_theme = theme_layout
+        .as_ref()
+        .and_then(|layout| theme_config::load_theme_name(&layout.config_path));
+    let workspace_theme = theme_config::load_theme_name(workspace.config_path());
+    let theme_name = workspace_theme.or(global_theme);
+    let theme = load_theme(theme_name.as_deref(), theme_dir);
     terminal.draw(|frame| render_loading(frame, &theme))?;
     let entries = service.list_entries(workspace.root())?;
     let history = match history::load_entries(&workspace) {

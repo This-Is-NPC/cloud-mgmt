@@ -8,6 +8,7 @@ mod lua_widget;
 mod ports;
 mod runtime;
 mod search_index;
+mod theme_config;
 mod use_cases;
 mod util;
 mod workspace;

@@ -3,6 +3,7 @@ use crate::adapters::tui::theme::{
     ThemeVariant,
 };
 use crate::cli::args::{ThemeArgs, ThemeCommand};
+use crate::theme_config;
 use ratatui::style::Color;
 use std::error::Error;
 use std::fs;
@@ -18,6 +19,7 @@ pub fn run(_scripts_dir: PathBuf, args: ThemeArgs) -> Result<(), Box<dyn Error>>
 }
 
 fn list_themes() -> Result<(), Box<dyn Error>> {
+    let layout = theme_config::ensure_theme_layout()?;
     let mut builtin = builtin_theme_names();
     builtin.sort();
     println!("Built-in themes:");
@@ -25,7 +27,7 @@ fn list_themes() -> Result<(), Box<dyn Error>> {
         println!(" - {}", name);
     }
 
-    let theme_dir = themes_dir()?;
+    let theme_dir = layout.themes_dir;
     let user_themes = if theme_dir.is_dir() {
         read_theme_names(&theme_dir)?
     } else {
@@ -45,22 +47,21 @@ fn list_themes() -> Result<(), Box<dyn Error>> {
 }
 
 fn set_theme(name: &str) -> Result<(), Box<dyn Error>> {
-    let theme_dir = themes_dir()?;
-    ensure_theme_exists(name, &theme_dir)?;
+    let layout = theme_config::ensure_theme_layout()?;
+    ensure_theme_exists(name, &layout.themes_dir)?;
+    theme_config::write_global_theme(&layout.config_path, name)?;
 
-    let config_path = config_path()?;
-    if let Some(parent) = config_path.parent() {
-        fs::create_dir_all(parent)?;
-    }
-    write_config_theme(&config_path, name)?;
-
-    println!("Theme set to '{}' in {}", name, config_path.display());
+    println!(
+        "Theme set to '{}' in {}",
+        name,
+        layout.config_path.display()
+    );
     Ok(())
 }
 
 fn preview_theme(name: &str) -> Result<(), Box<dyn Error>> {
-    let theme_dir = themes_dir()?;
-    let theme = if let Some(theme) = load_theme_from_name(name, &theme_dir) {
+    let layout = theme_config::ensure_theme_layout()?;
+    let theme = if let Some(theme) = load_theme_from_name(name, &layout.themes_dir) {
         theme
     } else if let Some(theme) = load_theme_from_builtin(name) {
         theme
@@ -73,12 +74,10 @@ fn preview_theme(name: &str) -> Result<(), Box<dyn Error>> {
 }
 
 fn print_paths() -> Result<(), Box<dyn Error>> {
-    let config_dir = config_dir()?;
-    let theme_dir = themes_dir()?;
-    let config_path = config_path()?;
-    println!("Config dir: {}", config_dir.display());
-    println!("Themes dir: {}", theme_dir.display());
-    println!("Config file: {}", config_path.display());
+    let layout = theme_config::ensure_theme_layout()?;
+    println!("Config dir: {}", layout.config_dir.display());
+    println!("Themes dir: {}", layout.themes_dir.display());
+    println!("Config file: {}", layout.config_path.display());
     Ok(())
 }
 
@@ -167,48 +166,4 @@ fn read_theme_names(theme_dir: &Path) -> Result<Vec<String>, Box<dyn Error>> {
     names.sort();
     names.dedup();
     Ok(names)
-}
-
-fn config_dir() -> Result<PathBuf, Box<dyn Error>> {
-    dirs::config_dir()
-        .map(|dir| dir.join("omakure"))
-        .ok_or_else(|| "Unable to resolve config directory".into())
-}
-
-fn themes_dir() -> Result<PathBuf, Box<dyn Error>> {
-    Ok(config_dir()?.join("themes"))
-}
-
-fn config_path() -> Result<PathBuf, Box<dyn Error>> {
-    Ok(config_dir()?.join("config.toml"))
-}
-
-fn write_config_theme(path: &Path, name: &str) -> Result<(), Box<dyn Error>> {
-    let mut value = if path.exists() {
-        let contents = fs::read_to_string(path)?;
-        toml::from_str::<toml::Value>(&contents)?
-    } else {
-        toml::Value::Table(toml::value::Table::new())
-    };
-
-    let table = value
-        .as_table_mut()
-        .ok_or_else(|| "Config root is not a table".to_string())?;
-    let theme_value = table
-        .entry("theme".to_string())
-        .or_insert_with(|| toml::Value::Table(toml::value::Table::new()));
-    match theme_value {
-        toml::Value::Table(theme_table) => {
-            theme_table.insert("name".to_string(), toml::Value::String(name.to_string()));
-        }
-        _ => {
-            let mut theme_table = toml::value::Table::new();
-            theme_table.insert("name".to_string(), toml::Value::String(name.to_string()));
-            *theme_value = toml::Value::Table(theme_table);
-        }
-    }
-
-    let output = toml::to_string_pretty(&value)?;
-    fs::write(path, output)?;
-    Ok(())
 }
