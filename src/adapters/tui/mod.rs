@@ -22,6 +22,7 @@ use std::time::Duration;
 use crate::history;
 use app::{App, Screen};
 use events::handle_key_event;
+use theme::load_theme;
 use ui::{render_loading, render_ui};
 
 pub fn setup_terminal() -> Result<Terminal<CrosstermBackend<io::Stdout>>, Box<dyn Error>> {
@@ -47,7 +48,8 @@ pub fn run_app(
     service: &ScriptService,
     workspace: Workspace,
 ) -> Result<(), Box<dyn Error>> {
-    terminal.draw(|frame| render_loading(frame))?;
+    let theme = load_theme(None, None);
+    terminal.draw(|frame| render_loading(frame, &theme))?;
     let entries = service.list_entries(workspace.root())?;
     let history = match history::load_entries(&workspace) {
         Ok(entries) => entries,
@@ -55,14 +57,15 @@ pub fn run_app(
     };
     let search_index = SearchIndex::new(workspace.search_db_path());
     search_index.start_background_rebuild(workspace.root().to_path_buf());
-    let mut app = App::new(service, workspace, entries, history, search_index);
+    let mut app = App::new(service, workspace, entries, history, search_index, theme);
 
     loop {
         if app.screen == Screen::Search {
             app.refresh_search_status();
         }
         app.poll_widget_load();
-        terminal.draw(|frame| render_ui(frame, &mut app))?;
+        let theme = app.theme.clone();
+        terminal.draw(|frame| render_ui(frame, &mut app, &theme))?;
 
         if event::poll(Duration::from_millis(200))? {
             match event::read()? {
@@ -78,7 +81,8 @@ pub fn run_app(
         }
         if let Some((script, args)) = app.result.take() {
             app.screen = Screen::Running;
-            terminal.draw(|frame| render_ui(frame, &mut app))?;
+            let theme = app.theme.clone();
+            terminal.draw(|frame| render_ui(frame, &mut app, &theme))?;
             let run_result = service.run_script(&script, &args);
             let entry = match run_result {
                 Ok(output) => history::success_entry(&app.workspace, &script, &args, output),

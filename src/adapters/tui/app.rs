@@ -13,6 +13,7 @@ pub(crate) use super::state::HistoryFocus;
 use super::state::{
     EnvironmentState, FieldInputState, HistoryState, NavigationState, SearchState, WidgetLoadResult,
 };
+use super::theme::Theme;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub(crate) enum Screen {
@@ -84,6 +85,7 @@ pub(crate) enum ExecutionStatus {
 pub(crate) struct App<'a> {
     service: &'a ScriptService,
     pub(crate) workspace: Workspace,
+    pub(crate) theme: Theme,
     pub(crate) screen: Screen,
     env_return: Option<Screen>,
     search_index: SearchIndex,
@@ -105,6 +107,7 @@ impl<'a> App<'a> {
         entries: Vec<WorkspaceEntry>,
         history: Vec<HistoryEntry>,
         search_index: SearchIndex,
+        theme: Theme,
     ) -> Self {
         let current_dir = workspace.root().to_path_buf();
         let navigation = NavigationState::new(current_dir, entries);
@@ -116,6 +119,7 @@ impl<'a> App<'a> {
         let mut app = Self {
             service,
             workspace,
+            theme,
             screen: Screen::ScriptSelect,
             env_return: None,
             search_index,

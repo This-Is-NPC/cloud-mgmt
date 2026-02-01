@@ -5,30 +5,33 @@ use ratatui::widgets::{Block, Borders, Paragraph};
 use ratatui::Frame;
 
 use super::app::{App, Screen};
+use super::theme::Theme;
 use super::theme::{BRAND_GRADIENT_END, BRAND_GRADIENT_START};
 use super::widgets::{
     environment, envs, error as error_widget, field_input, history, loading as loading_widget,
     run_result, running, schema, scripts, search,
 };
 
-pub(crate) fn render_ui(frame: &mut Frame, app: &mut App) {
+pub(crate) fn render_ui(frame: &mut Frame, app: &mut App, theme: &Theme) {
     match app.screen {
-        Screen::ScriptSelect => render_script_select(frame, app),
+        Screen::ScriptSelect => render_script_select(frame, app, theme),
         Screen::Search => search::render_search(frame, frame.size(), app),
         Screen::Environments => envs::render_envs(frame, frame.size(), app),
         Screen::FieldInput => field_input::render_field_input(frame, frame.size(), app),
         Screen::History => history::render_history(frame, frame.size(), app),
         Screen::Running => running::render_running(frame, frame.size(), app),
         Screen::RunResult => run_result::render_run_result(frame, frame.size(), app),
-        Screen::Error => render_error(frame, app),
+        Screen::Error => render_error(frame, app, theme),
     }
 }
 
-pub(crate) fn render_loading(frame: &mut Frame) {
+pub(crate) fn render_loading(frame: &mut Frame, theme: &Theme) {
+    let _ = theme;
     loading_widget::render_loading(frame, frame.size());
 }
 
-fn render_script_select(frame: &mut Frame, app: &mut App) {
+fn render_script_select(frame: &mut Frame, app: &mut App, theme: &Theme) {
+    let _ = theme;
     let (info_title, info_lines) = environment::status_info(
         &app.workspace,
         app.navigation.widget.as_ref(),
@@ -118,7 +121,8 @@ fn render_script_select(frame: &mut Frame, app: &mut App) {
     frame.render_widget(footer, chunks[2]);
 }
 
-fn render_error(frame: &mut Frame, app: &mut App) {
+fn render_error(frame: &mut Frame, app: &mut App, theme: &Theme) {
+    let _ = theme;
     let message = app
         .error_message
         .as_deref()
