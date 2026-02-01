@@ -39,7 +39,7 @@ pub(crate) fn render_run_result(frame: &mut Frame, area: Rect, app: &mut App) {
 
 fn render_lines(app: &App) -> Vec<Line<'static>> {
     let mut lines = Vec::new();
-    let entry = match app.history.first() {
+    let entry = match app.history.entries.first() {
         Some(entry) => entry,
         None => {
             lines.push(Line::from("No script output yet."));

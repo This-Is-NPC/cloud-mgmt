@@ -1,14 +1,18 @@
-use crate::adapters::environments::{self, EnvFile, EnvironmentConfig};
+use crate::adapters::environments;
 use crate::domain::Schema;
 use crate::history::HistoryEntry;
 use crate::lua_widget::{self, WidgetData};
 use crate::ports::{WorkspaceEntry, WorkspaceEntryKind};
-use crate::search_index::{SearchDetails, SearchIndex, SearchResult, SearchStatus};
+use crate::search_index::SearchIndex;
 use crate::use_cases::ScriptService;
 use crate::workspace::Workspace;
-use ratatui::widgets::{ListState, TableState};
 use std::path::{Path, PathBuf};
-use std::sync::mpsc::{self, Receiver, TryRecvError};
+use std::sync::mpsc::{self, TryRecvError};
+
+pub(crate) use super::state::HistoryFocus;
+use super::state::{
+    EnvironmentState, FieldInputState, HistoryState, NavigationState, SearchState, WidgetLoadResult,
+};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub(crate) enum Screen {
@@ -20,12 +24,6 @@ pub(crate) enum Screen {
     Running,
     RunResult,
     Error,
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub(crate) enum HistoryFocus {
-    List,
-    Output,
 }
 
 #[derive(Debug, Clone)]
@@ -86,51 +84,18 @@ pub(crate) enum ExecutionStatus {
 pub(crate) struct App<'a> {
     service: &'a ScriptService,
     pub(crate) workspace: Workspace,
-    pub(crate) current_dir: PathBuf,
-    pub(crate) entries: Vec<WorkspaceEntry>,
-    pub(crate) widget: Option<WidgetData>,
-    pub(crate) widget_error: Option<String>,
-    pub(crate) widget_loading: bool,
-    widget_receiver: Option<Receiver<WidgetLoadResult>>,
-    pub(crate) env_config: Option<EnvironmentConfig>,
-    pub(crate) env_error: Option<String>,
-    pub(crate) env_entries: Vec<EnvFile>,
-    pub(crate) env_state: ListState,
-    env_selection: usize,
-    pub(crate) env_preview_lines: Vec<ratatui::text::Line<'static>>,
-    pub(crate) env_preview_error: Option<String>,
-    pub(crate) env_preview_scroll: u16,
-    pub(crate) schema_preview: Option<SchemaPreview>,
-    pub(crate) schema_preview_error: Option<String>,
-    preview_script: Option<PathBuf>,
-    schema_cache: Option<(PathBuf, Schema)>,
-    pub(crate) list_state: ListState,
-    selection: usize,
-    pub(crate) history: Vec<HistoryEntry>,
-    pub(crate) history_state: TableState,
-    history_selection: usize,
-    pub(crate) history_focus: HistoryFocus,
     pub(crate) screen: Screen,
     env_return: Option<Screen>,
     search_index: SearchIndex,
-    pub(crate) search_query: String,
-    pub(crate) search_results: Vec<SearchResult>,
-    pub(crate) search_state: ListState,
-    search_selection: usize,
-    pub(crate) search_details: Option<SearchDetails>,
-    pub(crate) search_status: SearchStatus,
-    pub(crate) search_error: Option<String>,
-    pub(crate) schema_name: Option<String>,
-    pub(crate) schema_description: Option<String>,
-    pub(crate) fields: Vec<crate::domain::Field>,
-    pub(crate) field_index: usize,
-    pub(crate) field_inputs: Vec<String>,
-    pub(crate) args: Vec<String>,
-    pub(crate) error: Option<String>,
-    pub(crate) selected_script: Option<PathBuf>,
+    pub(crate) navigation: NavigationState,
+    pub(crate) environment: EnvironmentState,
+    pub(crate) search: SearchState,
+    pub(crate) history: HistoryState,
+    pub(crate) field_input: FieldInputState,
     pub(crate) result: Option<(PathBuf, Vec<String>)>,
     pub(crate) should_quit: bool,
     pub(crate) run_output_scroll: u16,
+    pub(crate) error_message: Option<String>,
 }
 
 impl<'a> App<'a> {
@@ -141,64 +106,28 @@ impl<'a> App<'a> {
         history: Vec<HistoryEntry>,
         search_index: SearchIndex,
     ) -> Self {
-        let mut list_state = ListState::default();
-        if !entries.is_empty() {
-            list_state.select(Some(0));
-        }
-        let mut history_state = TableState::default();
-        if !history.is_empty() {
-            history_state.select(Some(0));
-        }
         let current_dir = workspace.root().to_path_buf();
+        let navigation = NavigationState::new(current_dir, entries);
+        let history = HistoryState::new(history);
         let search_status = search_index.status();
+        let search = SearchState::new(search_status);
+        let environment = EnvironmentState::new();
+        let field_input = FieldInputState::new();
         let mut app = Self {
             service,
             workspace,
-            current_dir,
-            entries,
-            widget: None,
-            widget_error: None,
-            widget_loading: false,
-            widget_receiver: None,
-            env_config: None,
-            env_error: None,
-            env_entries: Vec::new(),
-            env_state: ListState::default(),
-            env_selection: 0,
-            env_preview_lines: Vec::new(),
-            env_preview_error: None,
-            env_preview_scroll: 0,
-            schema_preview: None,
-            schema_preview_error: None,
-            preview_script: None,
-            schema_cache: None,
-            list_state,
-            selection: 0,
-            history,
-            history_state,
-            history_selection: 0,
-            history_focus: HistoryFocus::List,
             screen: Screen::ScriptSelect,
             env_return: None,
             search_index,
-            search_query: String::new(),
-            search_results: Vec::new(),
-            search_state: ListState::default(),
-            search_selection: 0,
-            search_details: None,
-            search_status,
-            search_error: None,
-            schema_name: None,
-            schema_description: None,
-            fields: Vec::new(),
-            field_index: 0,
-            field_inputs: Vec::new(),
-            args: Vec::new(),
-            error: None,
-            selected_script: None,
+            navigation,
+            environment,
+            search,
+            history,
+            field_input,
             result: None,
             should_quit: false,
             run_output_scroll: 0,
+            error_message: None,
         };
         app.start_widget_load();
         app.load_env_config();
@@ -208,27 +137,29 @@ impl<'a> App<'a> {
     }
 
     pub(crate) fn selected_entry(&self) -> Option<&WorkspaceEntry> {
-        self.entries.get(self.selection)
+        self.navigation.entries.get(self.navigation.selection)
     }
 
     pub(crate) fn move_selection(&mut self, delta: isize) {
-        if self.entries.is_empty() {
+        if self.navigation.entries.is_empty() {
             return;
         }
-        let len = self.entries.len() as isize;
-        let mut new_index = self.selection as isize + delta;
+        let len = self.navigation.entries.len() as isize;
+        let mut new_index = self.navigation.selection as isize + delta;
         if new_index < 0 {
             new_index = 0;
         } else if new_index >= len {
             new_index = len - 1;
         }
-        self.selection = new_index as usize;
-        self.list_state.select(Some(self.selection));
+        self.navigation.selection = new_index as usize;
+        self.navigation
+            .list_state
+            .select(Some(self.navigation.selection));
         self.update_schema_preview();
     }
 
     pub(crate) fn enter_search(&mut self) {
-        self.search_status = self.search_index.status();
+        self.search.status = self.search_index.status();
         self.screen = Screen::Search;
         self.refresh_search_results();
     }
@@ -246,54 +177,58 @@ impl<'a> App<'a> {
     }
 
     pub(crate) fn scroll_env_preview(&mut self, delta: i16) {
-        let mut next = self.env_preview_scroll as i16 + delta;
+        let mut next = self.environment.preview_scroll as i16 + delta;
         if next < 0 {
             next = 0;
         }
         if next > u16::MAX as i16 {
             next = u16::MAX as i16;
         }
-        self.env_preview_scroll = next as u16;
+        self.environment.preview_scroll = next as u16;
     }
 
     pub(crate) fn move_env_selection(&mut self, delta: isize) {
-        if self.env_entries.is_empty() {
+        if self.environment.entries.is_empty() {
             return;
         }
-        let len = self.env_entries.len() as isize;
-        let mut new_index = self.env_selection as isize + delta;
+        let len = self.environment.entries.len() as isize;
+        let mut new_index = self.environment.selection as isize + delta;
         if new_index < 0 {
             new_index = 0;
         } else if new_index >= len {
             new_index = len - 1;
         }
-        self.env_selection = new_index as usize;
-        self.env_state.select(Some(self.env_selection));
+        self.environment.selection = new_index as usize;
+        self.environment
+            .list_state
+            .select(Some(self.environment.selection));
         self.update_env_preview();
     }
 
     pub(crate) fn activate_selected_env(&mut self) {
-        if self.env_entries.is_empty() {
+        if self.environment.entries.is_empty() {
             return;
         }
-        let name = self.env_entries[self.env_selection].name.clone();
+        let name = self.environment.entries[self.environment.selection]
+            .name
+            .clone();
         match environments::set_active_env(self.workspace.envs_dir(), Some(&name)) {
             Ok(()) => self.load_env_config(),
-            Err(err) => self.env_error = Some(err),
+            Err(err) => self.environment.error = Some(err),
         }
     }
 
     pub(crate) fn deactivate_env(&mut self) {
         match environments::set_active_env(self.workspace.envs_dir(), None) {
             Ok(()) => self.load_env_config(),
-            Err(err) => self.env_error = Some(err),
+            Err(err) => self.environment.error = Some(err),
         }
     }
 
     pub(crate) fn refresh_search_status(&mut self) {
         let status = self.search_index.status();
-        if status != self.search_status {
-            self.search_status = status.clone();
+        if status != self.search.status {
+            self.search.status = status.clone();
             if self.screen == Screen::Search {
                 self.refresh_search_results();
             }
@@ -301,33 +236,33 @@ impl<'a> App<'a> {
     }
 
     pub(crate) fn move_search_selection(&mut self, delta: isize) {
-        if self.search_results.is_empty() {
+        if self.search.results.is_empty() {
             return;
         }
-        let len = self.search_results.len() as isize;
-        let mut new_index = self.search_selection as isize + delta;
+        let len = self.search.results.len() as isize;
+        let mut new_index = self.search.selection as isize + delta;
         if new_index < 0 {
             new_index = 0;
         } else if new_index >= len {
             new_index = len - 1;
         }
-        self.search_selection = new_index as usize;
-        self.search_state.select(Some(self.search_selection));
+        self.search.selection = new_index as usize;
+        self.search.list_state.select(Some(self.search.selection));
         self.update_search_details();
     }
 
     pub(crate) fn append_search_char(&mut self, ch: char) {
-        self.search_query.push(ch);
+        self.search.query.push(ch);
         self.refresh_search_results();
     }
 
     pub(crate) fn pop_search_char(&mut self) {
-        self.search_query.pop();
+        self.search.query.pop();
         self.refresh_search_results();
     }
 
     pub(crate) fn open_selected_search(&mut self) {
-        let entry = match self.search_results.get(self.search_selection) {
+        let entry = match self.search.results.get(self.search.selection) {
             Some(entry) => entry,
             None => return,
         };
@@ -343,7 +278,7 @@ impl<'a> App<'a> {
 
         match entry.kind {
             WorkspaceEntryKind::Directory => {
-                self.current_dir = entry.path;
+                self.navigation.current_dir = entry.path;
                 self.refresh_entries();
             }
             WorkspaceEntryKind::Script => {
@@ -353,43 +288,45 @@ impl<'a> App<'a> {
     }
 
     pub(crate) fn navigate_up(&mut self) {
-        if self.current_dir == self.workspace.root() {
+        if self.navigation.current_dir == self.workspace.root() {
             return;
         }
-        if let Some(parent) = self.current_dir.parent() {
-            self.current_dir = parent.to_path_buf();
+        if let Some(parent) = self.navigation.current_dir.parent() {
+            self.navigation.current_dir = parent.to_path_buf();
             self.refresh_entries();
         }
     }
 
     pub(crate) fn move_history_selection(&mut self, delta: isize) {
-        if self.history.is_empty() {
+        if self.history.entries.is_empty() {
             return;
         }
-        let len = self.history.len() as isize;
-        let mut new_index = self.history_selection as isize + delta;
+        let len = self.history.entries.len() as isize;
+        let mut new_index = self.history.selection as isize + delta;
         if new_index < 0 {
             new_index = 0;
         } else if new_index >= len {
             new_index = len - 1;
         }
-        self.history_selection = new_index as usize;
-        self.history_state.select(Some(self.history_selection));
+        self.history.selection = new_index as usize;
+        self.history
+            .table_state
+            .select(Some(self.history.selection));
         self.reset_run_output_scroll();
     }
 
     pub(crate) fn add_history_entry(&mut self, entry: HistoryEntry) {
-        self.history.insert(0, entry);
-        self.history_selection = 0;
-        self.history_state.select(Some(0));
+        self.history.entries.insert(0, entry);
+        self.history.selection = 0;
+        self.history.table_state.select(Some(0));
     }
 
     pub(crate) fn current_history_entry(&self) -> Option<&HistoryEntry> {
-        self.history.get(self.history_selection)
+        self.history.entries.get(self.history.selection)
     }
 
     pub(crate) fn load_schema(&mut self, script: PathBuf) {
-        let schema_result = match self.schema_cache.as_ref() {
+        let schema_result = match self.navigation.schema_cache.as_ref() {
             Some((path, schema)) if path == &script => Ok(schema.clone()),
             _ => self.service.load_schema(&script),
         };
@@ -401,77 +338,90 @@ impl<'a> App<'a> {
                 let tags = schema.tags.clone();
                 let outputs = schema.outputs.clone();
                 let queue = schema.queue.clone();
-                self.schema_name = Some(schema.name);
-                self.schema_description = schema.description;
-                self.fields = schema.fields;
-                self.field_index = 0;
-                self.field_inputs = self.build_field_inputs();
-                self.args.clear();
-                self.error = None;
-                self.selected_script = Some(script.clone());
-                self.schema_cache = Some((
+                self.field_input.schema_name = Some(schema.name);
+                self.field_input.schema_description = schema.description;
+                self.field_input.fields = schema.fields;
+                self.field_input.field_index = 0;
+                self.field_input.field_inputs = self.build_field_inputs();
+                self.field_input.args.clear();
+                self.field_input.error = None;
+                self.field_input.selected_script = Some(script.clone());
+                self.navigation.schema_cache = Some((
                     script.clone(),
                     Schema {
-                        name: self.schema_name.clone().unwrap_or_default(),
-                        description: self.schema_description.clone(),
+                        name: self.field_input.schema_name.clone().unwrap_or_default(),
+                        description: self.field_input.schema_description.clone(),
                         tags,
-                        fields: self.fields.clone(),
+                        fields: self.field_input.fields.clone(),
                         outputs,
                         queue,
                     },
                 ));
-                if self.fields.is_empty() {
+                if self.field_input.fields.is_empty() {
                     self.result = Some((script, Vec::new()));
                 } else {
                     self.screen = Screen::FieldInput;
                 }
             }
             Err(err) => {
-                self.error = Some(err.to_string());
+                self.error_message = Some(err.to_string());
                 self.screen = Screen::Error;
             }
         }
     }
 
     pub(crate) fn move_field_selection(&mut self, delta: isize) {
-        if self.fields.is_empty() {
+        if self.field_input.fields.is_empty() {
             return;
         }
-        let len = self.fields.len() as isize;
-        let mut new_index = self.field_index as isize + delta;
+        let len = self.field_input.fields.len() as isize;
+        let mut new_index = self.field_input.field_index as isize + delta;
         while new_index < 0 {
             new_index += len;
         }
         while new_index >= len {
             new_index -= len;
         }
-        self.field_index = new_index as usize;
-        self.error = None;
+        self.field_input.field_index = new_index as usize;
+        self.field_input.error = None;
     }
 
     pub(crate) fn append_field_char(&mut self, ch: char) {
-        if let Some(value) = self.field_inputs.get_mut(self.field_index) {
+        if let Some(value) = self
+            .field_input
+            .field_inputs
+            .get_mut(self.field_input.field_index)
+        {
             value.push(ch);
-            self.error = None;
+            self.field_input.error = None;
         }
     }
 
     pub(crate) fn pop_field_char(&mut self) {
-        if let Some(value) = self.field_inputs.get_mut(self.field_index) {
+        if let Some(value) = self
+            .field_input
+            .field_inputs
+            .get_mut(self.field_input.field_index)
+        {
             value.pop();
-            self.error = None;
+            self.field_input.error = None;
         }
     }
 
     pub(crate) fn submit_form(&mut self) {
-        if self.fields.is_empty() {
+        if self.field_input.fields.is_empty() {
             self.finish();
             return;
         }
 
         let mut args = Vec::new();
-        for (idx, field) in self.fields.iter().enumerate() {
-            let input = self.field_inputs.get(idx).map(String::as_str).unwrap_or("");
+        for (idx, field) in self.field_input.fields.iter().enumerate() {
+            let input = self
+                .field_input
+                .field_inputs
+                .get(idx)
+                .map(String::as_str)
+                .unwrap_or("");
             match crate::domain::normalize_input(field, input) {
                 Ok(value) => {
                     if let Some(value) = value {
@@ -484,42 +434,42 @@ impl<'a> App<'a> {
                     }
                 }
                 Err(message) => {
-                    self.error = Some(format!("{}: {}", field.name, message));
-                    self.field_index = idx;
+                    self.field_input.error = Some(format!("{}: {}", field.name, message));
+                    self.field_input.field_index = idx;
                     return;
                 }
             }
         }
 
-        self.args = args;
-        self.error = None;
+        self.field_input.args = args;
+        self.field_input.error = None;
         self.finish();
     }
 
     fn finish(&mut self) {
-        if let Some(script) = &self.selected_script {
-            self.result = Some((script.clone(), self.args.clone()));
+        if let Some(script) = &self.field_input.selected_script {
+            self.result = Some((script.clone(), self.field_input.args.clone()));
         } else {
             self.should_quit = true;
         }
     }
 
     pub(crate) fn refresh_entries(&mut self) {
-        match self.service.list_entries(&self.current_dir) {
+        match self.service.list_entries(&self.navigation.current_dir) {
             Ok(entries) => {
-                self.entries = entries;
-                self.selection = 0;
-                if self.entries.is_empty() {
-                    self.list_state.select(None);
+                self.navigation.entries = entries;
+                self.navigation.selection = 0;
+                if self.navigation.entries.is_empty() {
+                    self.navigation.list_state.select(None);
                 } else {
-                    self.list_state.select(Some(0));
+                    self.navigation.list_state.select(Some(0));
                 }
-                self.error = None;
+                self.error_message = None;
                 self.start_widget_load();
                 self.update_schema_preview();
             }
             Err(err) => {
-                self.error = Some(err.to_string());
+                self.error_message = Some(err.to_string());
                 self.screen = Screen::Error;
             }
         }
@@ -533,14 +483,14 @@ impl<'a> App<'a> {
 
     pub(crate) fn back_to_script_select(&mut self) {
         self.screen = Screen::ScriptSelect;
-        self.schema_name = None;
-        self.schema_description = None;
-        self.fields.clear();
-        self.field_index = 0;
-        self.field_inputs.clear();
-        self.args.clear();
-        self.error = None;
-        self.selected_script = None;
+        self.field_input.schema_name = None;
+        self.field_input.schema_description = None;
+        self.field_input.fields.clear();
+        self.field_input.field_index = 0;
+        self.field_input.field_inputs.clear();
+        self.field_input.args.clear();
+        self.field_input.error = None;
+        self.field_input.selected_script = None;
         self.result = None;
     }
 
@@ -565,12 +515,12 @@ impl<'a> App<'a> {
     }
 
     fn start_widget_load(&mut self) {
-        let dir = self.current_dir.clone();
+        let dir = self.navigation.current_dir.clone();
         let (tx, rx) = mpsc::channel();
-        self.widget_loading = true;
-        self.widget = None;
-        self.widget_error = None;
-        self.widget_receiver = Some(rx);
+        self.navigation.widget_loading = true;
+        self.navigation.widget = None;
+        self.navigation.widget_error = None;
+        self.navigation.widget_receiver = Some(rx);
         std::thread::spawn(move || {
             let (widget, error) = load_widget_state(&dir);
             let _ = tx.send(WidgetLoadResult { widget, error });
@@ -578,21 +528,21 @@ impl<'a> App<'a> {
     }
 
     pub(crate) fn poll_widget_load(&mut self) {
-        let Some(receiver) = &self.widget_receiver else {
+        let Some(receiver) = &self.navigation.widget_receiver else {
             return;
         };
 
         match receiver.try_recv() {
             Ok(result) => {
-                self.widget = result.widget;
-                self.widget_error = result.error;
-                self.widget_loading = false;
-                self.widget_receiver = None;
+                self.navigation.widget = result.widget;
+                self.navigation.widget_error = result.error;
+                self.navigation.widget_loading = false;
+                self.navigation.widget_receiver = None;
             }
             Err(TryRecvError::Empty) => {}
             Err(TryRecvError::Disconnected) => {
-                self.widget_loading = false;
-                self.widget_receiver = None;
+                self.navigation.widget_loading = false;
+                self.navigation.widget_receiver = None;
             }
         }
     }
@@ -630,36 +580,41 @@ impl<'a> App<'a> {
                 .position(|entry| entry.name == *active)
                 .unwrap_or(0)
         } else {
-            self.env_selection.min(env_entries.len().saturating_sub(1))
+            self.environment
+                .selection
+                .min(env_entries.len().saturating_sub(1))
         };
 
-        self.env_entries = env_entries;
-        self.env_selection = selected;
-        if self.env_entries.is_empty() {
-            self.env_state.select(None);
+        self.environment.entries = env_entries;
+        self.environment.selection = selected;
+        if self.environment.entries.is_empty() {
+            self.environment.list_state.select(None);
         } else {
-            self.env_state.select(Some(self.env_selection));
+            self.environment
+                .list_state
+                .select(Some(self.environment.selection));
         }
 
-        self.env_config = env_config;
-        self.env_error = env_error;
+        self.environment.config = env_config;
+        self.environment.error = env_error;
         self.update_env_preview();
     }
 
     fn update_env_preview(&mut self) {
-        self.env_preview_scroll = 0;
-        self.env_preview_error = None;
+        self.environment.preview_scroll = 0;
+        self.environment.preview_error = None;
 
-        let entry = match self.env_entries.get(self.env_selection) {
+        let entry = match self.environment.entries.get(self.environment.selection) {
             Some(entry) => entry,
             None => {
-                self.env_preview_lines = Vec::new();
+                self.environment.preview_lines = Vec::new();
                 return;
             }
         };
 
         let envs_dir = self
-            .env_config
+            .environment
+            .config
             .as_ref()
             .map(|config| config.envs_dir.clone())
             .unwrap_or_else(|| self.workspace.envs_dir().to_path_buf());
@@ -685,27 +640,32 @@ impl<'a> App<'a> {
                     lines.push(line);
                 }
                 if lines.is_empty() {
-                    self.env_preview_lines =
+                    self.environment.preview_lines =
                         vec![ratatui::text::Line::from(ratatui::text::Span::styled(
                             "No entries found.",
                             ratatui::style::Style::default().fg(ratatui::style::Color::Gray),
                         ))];
                 } else {
-                    self.env_preview_lines = lines;
+                    self.environment.preview_lines = lines;
                 }
-                self.env_preview_error = None;
+                self.environment.preview_error = None;
             }
             Err(err) => {
-                self.env_preview_lines = Vec::new();
-                self.env_preview_error = Some(err);
+                self.environment.preview_lines = Vec::new();
+                self.environment.preview_error = Some(err);
             }
         }
     }
 
     fn build_field_inputs(&self) -> Vec<String> {
-        let defaults = self.env_config.as_ref().map(|config| &config.defaults);
+        let defaults = self
+            .environment
+            .config
+            .as_ref()
+            .map(|config| &config.defaults);
         match defaults {
             Some(defaults) if !defaults.is_empty() => self
+                .field_input
                 .fields
                 .iter()
                 .map(|field| {
@@ -715,7 +675,7 @@ impl<'a> App<'a> {
                         .unwrap_or_default()
                 })
                 .collect(),
-            _ => vec![String::new(); self.fields.len()],
+            _ => vec![String::new(); self.field_input.fields.len()],
         }
     }
 
@@ -723,73 +683,73 @@ impl<'a> App<'a> {
         let (entry_path, entry_kind) = match self.selected_entry() {
             Some(entry) => (entry.path.clone(), entry.kind),
             None => {
-                self.schema_preview = None;
-                self.schema_preview_error = None;
-                self.preview_script = None;
+                self.navigation.schema_preview = None;
+                self.navigation.schema_preview_error = None;
+                self.navigation.preview_script = None;
                 return;
             }
         };
 
         if entry_kind != WorkspaceEntryKind::Script {
-            self.schema_preview = None;
-            self.schema_preview_error = None;
-            self.preview_script = None;
+            self.navigation.schema_preview = None;
+            self.navigation.schema_preview_error = None;
+            self.navigation.preview_script = None;
             return;
         }
 
-        if self.preview_script.as_ref() == Some(&entry_path) {
+        if self.navigation.preview_script.as_ref() == Some(&entry_path) {
             return;
         }
 
         match self.service.load_schema(&entry_path) {
             Ok(mut schema) => {
                 schema.fields.sort_by_key(|field| field.order);
-                self.schema_preview = Some(schema_to_preview(&schema));
-                self.schema_preview_error = None;
-                self.preview_script = Some(entry_path.clone());
-                self.schema_cache = Some((entry_path, schema));
+                self.navigation.schema_preview = Some(schema_to_preview(&schema));
+                self.navigation.schema_preview_error = None;
+                self.navigation.preview_script = Some(entry_path.clone());
+                self.navigation.schema_cache = Some((entry_path, schema));
             }
             Err(err) => {
-                self.schema_preview = None;
-                self.schema_preview_error = Some(err.to_string());
-                self.preview_script = Some(entry_path);
+                self.navigation.schema_preview = None;
+                self.navigation.schema_preview_error = Some(err.to_string());
+                self.navigation.preview_script = Some(entry_path);
             }
         }
     }
 
     fn refresh_search_results(&mut self) {
-        match self.search_index.query(&self.search_query) {
+        match self.search_index.query(&self.search.query) {
             Ok(results) => {
-                self.search_results = results;
-                self.search_error = None;
+                self.search.results = results;
+                self.search.error = None;
             }
             Err(err) => {
-                self.search_results.clear();
-                self.search_error = Some(err);
+                self.search.results.clear();
+                self.search.error = Some(err);
             }
         }
-        self.search_selection = 0;
-        if self.search_results.is_empty() {
-            self.search_state.select(None);
+        self.search.selection = 0;
+        if self.search.results.is_empty() {
+            self.search.list_state.select(None);
         } else {
-            self.search_state.select(Some(0));
+            self.search.list_state.select(Some(0));
         }
         self.update_search_details();
     }
 
     fn update_search_details(&mut self) {
-        self.search_details = None;
-        let entry = match self.search_results.get(self.search_selection) {
+        self.search.details = None;
+        let entry = match self.search.results.get(self.search.selection) {
             Some(entry) => entry,
             None => return,
         };
         match self.search_index.load_details(&entry.script_path) {
             Ok(details) => {
-                self.search_details = details;
-                self.search_error = None;
+                self.search.details = details;
+                self.search.error = None;
             }
             Err(err) => {
-                self.search_error = Some(err);
+                self.search.error = Some(err);
             }
         }
     }
@@ -805,11 +765,6 @@ impl ExecutionStatus {
             ExecutionStatus::Failed(entry.exit_code)
         }
     }
-}
-
-struct WidgetLoadResult {
-    widget: Option<WidgetData>,
-    error: Option<String>,
 }
 
 fn load_widget_state(dir: &Path) -> (Option<WidgetData>, Option<String>) {

@@ -9,6 +9,7 @@ use super::super::theme;
 
 pub(crate) fn render_field_input(frame: &mut Frame, area: Rect, app: &mut App) {
     let script_name = app
+        .field_input
         .selected_script
         .as_ref()
         .and_then(|path| path.file_name())
@@ -24,14 +25,17 @@ pub(crate) fn render_field_input(frame: &mut Frame, area: Rect, app: &mut App) {
         ]),
         Line::from(vec![
             Span::styled("Schema: ", label_style),
-            Span::styled(app.schema_name.as_deref().unwrap_or("-"), value_style),
+            Span::styled(
+                app.field_input.schema_name.as_deref().unwrap_or("-"),
+                value_style,
+            ),
         ]),
         Line::from(vec![
             Span::styled("Description: ", label_style),
-            Span::raw(app.schema_description.as_deref().unwrap_or("-")),
+            Span::raw(app.field_input.schema_description.as_deref().unwrap_or("-")),
         ]),
     ];
-    if let Some(message) = &app.error {
+    if let Some(message) = &app.field_input.error {
         header_lines.push(Line::from(Span::styled(
             format!("Error: {}", message),
             Style::default().fg(Color::Red),
@@ -65,7 +69,7 @@ fn render_field_boxes(frame: &mut Frame, area: Rect, app: &App) {
     let inner = outer.inner(area);
     frame.render_widget(outer, area);
 
-    if app.fields.is_empty() {
+    if app.field_input.fields.is_empty() {
         let empty = Paragraph::new("No fields found.").wrap(Wrap { trim: true });
         frame.render_widget(empty, inner);
         return;
@@ -73,9 +77,9 @@ fn render_field_boxes(frame: &mut Frame, area: Rect, app: &App) {
 
     let box_height = 4u16;
     let max_boxes = (inner.height / box_height).max(1) as usize;
-    let total = app.fields.len();
-    let mut start = if app.field_index >= max_boxes {
-        app.field_index + 1 - max_boxes
+    let total = app.field_input.fields.len();
+    let mut start = if app.field_input.field_index >= max_boxes {
+        app.field_input.field_index + 1 - max_boxes
     } else {
         0
     };
@@ -86,11 +90,11 @@ fn render_field_boxes(frame: &mut Frame, area: Rect, app: &App) {
 
     let mut y = inner.y;
     for idx in start..end {
-        let field = &app.fields[idx];
+        let field = &app.field_input.fields[idx];
         let required = field.required.unwrap_or(false);
         let required_label = if required { "required" } else { "optional" };
         let title = format!("{} ({}, {})", field.name, field.kind, required_label);
-        let is_selected = idx == app.field_index;
+        let is_selected = idx == app.field_input.field_index;
         let border_style = if is_selected {
             Style::default()
                 .fg(theme::brand_accent())
@@ -98,7 +102,12 @@ fn render_field_boxes(frame: &mut Frame, area: Rect, app: &App) {
         } else {
             Style::default().fg(Color::Gray)
         };
-        let value = app.field_inputs.get(idx).map(String::as_str).unwrap_or("");
+        let value = app
+            .field_input
+            .field_inputs
+            .get(idx)
+            .map(String::as_str)
+            .unwrap_or("");
         let value_text = if value.trim().is_empty() {
             field
                 .default

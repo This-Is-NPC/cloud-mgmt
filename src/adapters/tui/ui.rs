@@ -31,9 +31,9 @@ pub(crate) fn render_loading(frame: &mut Frame) {
 fn render_script_select(frame: &mut Frame, app: &mut App) {
     let (info_title, info_lines) = environment::status_info(
         &app.workspace,
-        app.widget.as_ref(),
-        app.widget_error.as_deref(),
-        app.widget_loading,
+        app.navigation.widget.as_ref(),
+        app.navigation.widget_error.as_deref(),
+        app.navigation.widget_loading,
     );
     let info_height = info_lines.len() as u16 + 2;
 
@@ -74,37 +74,37 @@ fn render_script_select(frame: &mut Frame, app: &mut App) {
             frame,
             body_chunks[0],
             &app.workspace,
-            &app.current_dir,
-            &app.entries,
-            &mut app.list_state,
+            &app.navigation.current_dir,
+            &app.navigation.entries,
+            &mut app.navigation.list_state,
         );
         let schema_title = schema_title(app);
         schema::render_schema_preview(
             frame,
             body_chunks[1],
             &schema_title,
-            app.schema_preview.as_ref(),
-            app.schema_preview_error.as_deref(),
+            app.navigation.schema_preview.as_ref(),
+            app.navigation.schema_preview_error.as_deref(),
         );
     } else {
         scripts::render_scripts(
             frame,
             entries_area,
             &app.workspace,
-            &app.current_dir,
-            &app.entries,
-            &mut app.list_state,
+            &app.navigation.current_dir,
+            &app.navigation.entries,
+            &mut app.navigation.list_state,
         );
     }
 
-    let mut footer_text = if app.entries.is_empty() {
+    let mut footer_text = if app.navigation.entries.is_empty() {
         "Folder is empty. r refresh, h history, Ctrl+S search, Alt+E envs, q quit".to_string()
     } else {
         "Up/Down move, Enter open/run, r refresh, h history, Ctrl+S search, Alt+E envs, q quit"
             .to_string()
     };
-    if app.current_dir != app.workspace.root() {
-        if app.entries.is_empty() {
+    if app.navigation.current_dir != app.workspace.root() {
+        if app.navigation.entries.is_empty() {
             footer_text =
                 "Folder is empty. Backspace up, r refresh, h history, Ctrl+S search, Alt+E envs, q quit"
                     .to_string();
@@ -120,7 +120,7 @@ fn render_script_select(frame: &mut Frame, app: &mut App) {
 
 fn render_error(frame: &mut Frame, app: &mut App) {
     let message = app
-        .error
+        .error_message
         .as_deref()
         .unwrap_or("Unknown error while loading schema");
     error_widget::render_error(frame, frame.size(), message);

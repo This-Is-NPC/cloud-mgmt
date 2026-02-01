@@ -29,19 +29,19 @@ pub(crate) fn render_search(frame: &mut Frame, area: Rect, app: &mut App) {
 }
 
 fn render_search_input(frame: &mut Frame, area: Rect, app: &App) {
-    let title = match &app.search_status {
+    let title = match &app.search.status {
         SearchStatus::Indexing => "Search (indexing...)".to_string(),
         SearchStatus::Ready { script_count } => format!("Search ({} scripts)", script_count),
         SearchStatus::Error(_) => "Search (index error)".to_string(),
         SearchStatus::Idle => "Search".to_string(),
     };
-    let query_line = if app.search_query.is_empty() {
+    let query_line = if app.search.query.is_empty() {
         Line::from(Span::styled(
             "Type to search...",
             Style::default().fg(Color::DarkGray),
         ))
     } else {
-        Line::from(app.search_query.clone())
+        Line::from(app.search.query.clone())
     };
     let input = Paragraph::new(vec![query_line])
         .block(Block::default().borders(Borders::ALL).title(title))
@@ -50,10 +50,10 @@ fn render_search_input(frame: &mut Frame, area: Rect, app: &App) {
 }
 
 fn render_search_body(frame: &mut Frame, area: Rect, app: &mut App) {
-    if app.search_results.is_empty() {
-        let message = if let Some(err) = &app.search_error {
+    if app.search.results.is_empty() {
+        let message = if let Some(err) = &app.search.error {
             format!("Search error: {}", err)
-        } else if matches!(app.search_status, SearchStatus::Indexing) {
+        } else if matches!(app.search.status, SearchStatus::Indexing) {
             "Indexing scripts...".to_string()
         } else {
             "No scripts found for this search.".to_string()
@@ -76,7 +76,8 @@ fn render_search_body(frame: &mut Frame, area: Rect, app: &mut App) {
 
 fn render_search_results(frame: &mut Frame, area: Rect, app: &mut App) {
     let items: Vec<ListItem> = app
-        .search_results
+        .search
+        .results
         .iter()
         .map(|result| ListItem::new(result_label(result)))
         .collect();
@@ -86,15 +87,16 @@ fn render_search_results(frame: &mut Frame, area: Rect, app: &mut App) {
         .highlight_style(theme::selection_style())
         .highlight_symbol(theme::selection_symbol_str());
 
-    frame.render_stateful_widget(list, area, &mut app.search_state);
+    frame.render_stateful_widget(list, area, &mut app.search.list_state);
 }
 
 fn render_search_schema(frame: &mut Frame, area: Rect, app: &App) {
     let selected = app
-        .search_results
-        .get(app.search_state.selected().unwrap_or(0));
+        .search
+        .results
+        .get(app.search.list_state.selected().unwrap_or(0));
     let title = schema_title(selected);
-    let (preview, error) = match (app.search_details.as_ref(), selected) {
+    let (preview, error) = match (app.search.details.as_ref(), selected) {
         (Some(details), _) => (
             Some(build_schema_preview_from_details(details)),
             details.schema_error.as_deref(),
@@ -109,7 +111,7 @@ fn render_search_schema(frame: &mut Frame, area: Rect, app: &App) {
 }
 
 fn render_search_footer(frame: &mut Frame, area: Rect, app: &App) {
-    let hint = match &app.search_status {
+    let hint = match &app.search.status {
         SearchStatus::Indexing => {
             "Type to search, Enter open, Alt+E envs, Esc back. Indexing in background."
         }

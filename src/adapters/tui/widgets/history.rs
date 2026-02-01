@@ -23,7 +23,7 @@ pub(crate) fn render_history(frame: &mut Frame, area: Rect, app: &mut App) {
     render_history_list(frame, body_chunks[0], app);
     render_history_output(frame, body_chunks[1], app);
 
-    let footer_text = match app.history_focus {
+    let footer_text = match app.history.focus {
         HistoryFocus::List => {
             "Up/Down to select, Enter to view output, Alt+E envs, Esc/q to go back"
         }
@@ -34,7 +34,7 @@ pub(crate) fn render_history(frame: &mut Frame, area: Rect, app: &mut App) {
 }
 
 fn render_history_list(frame: &mut Frame, area: Rect, app: &mut App) {
-    if app.history.is_empty() {
+    if app.history.entries.is_empty() {
         let empty = Paragraph::new("No executions yet.")
             .block(Block::default().borders(Borders::ALL).title("History"))
             .wrap(Wrap { trim: true });
@@ -44,6 +44,7 @@ fn render_history_list(frame: &mut Frame, area: Rect, app: &mut App) {
 
     let rows: Vec<Row> = app
         .history
+        .entries
         .iter()
         .map(|entry| {
             let name = app.display_path(&entry.script);
@@ -63,11 +64,11 @@ fn render_history_list(frame: &mut Frame, area: Rect, app: &mut App) {
         Cell::from(Span::styled("Date", Style::default().fg(Color::Gray))),
         Cell::from(Span::styled("Script", Style::default().fg(Color::Gray))),
     ]);
-    let highlight_style = match app.history_focus {
+    let highlight_style = match app.history.focus {
         HistoryFocus::List => theme::selection_style(),
         HistoryFocus::Output => Style::default().fg(Color::DarkGray),
     };
-    let highlight_symbol = if app.history_focus == HistoryFocus::List {
+    let highlight_symbol = if app.history.focus == HistoryFocus::List {
         theme::selection_symbol()
     } else {
         Span::styled("> ", highlight_style)
@@ -85,7 +86,7 @@ fn render_history_list(frame: &mut Frame, area: Rect, app: &mut App) {
     .highlight_style(highlight_style)
     .highlight_symbol(highlight_symbol);
 
-    frame.render_stateful_widget(table, area, &mut app.history_state);
+    frame.render_stateful_widget(table, area, &mut app.history.table_state);
 }
 
 fn render_history_output(frame: &mut Frame, area: Rect, app: &mut App) {
@@ -125,7 +126,7 @@ fn render_history_output(frame: &mut Frame, area: Rect, app: &mut App) {
     }
 
     let mut block = Block::default().borders(Borders::ALL).title("Output");
-    if app.history_focus == HistoryFocus::Output {
+    if app.history.focus == HistoryFocus::Output {
         let border_style = theme::selection_border_style();
         block = block.border_style(border_style).title_style(border_style);
     }
@@ -160,6 +161,7 @@ const HISTORY_MIN_OUTPUT_WIDTH: u16 = 30;
 fn history_list_width(total_width: u16, app: &App) -> u16 {
     let max_script = app
         .history
+        .entries
         .iter()
         .map(|entry| app.display_path(&entry.script).len() as u16)
         .max()

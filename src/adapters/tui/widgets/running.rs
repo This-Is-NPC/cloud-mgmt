@@ -7,15 +7,16 @@ use super::super::app::App;
 
 pub(crate) fn render_running(frame: &mut Frame, area: Rect, app: &mut App) {
     let script_name = app
+        .field_input
         .selected_script
         .as_ref()
         .and_then(|path| path.file_name())
         .and_then(|name| name.to_str())
         .unwrap_or("<unknown>");
-    let args = if app.args.is_empty() {
+    let args = if app.field_input.args.is_empty() {
         "-".to_string()
     } else {
-        app.args.join(" ")
+        app.field_input.args.join(" ")
     };
 
     let lines = vec![
