@@ -48,6 +48,9 @@ pub enum Commands {
 
     /// Generate shell completion
     Completion(CompletionArgs),
+
+    /// Manage themes
+    Theme(ThemeArgs),
 }
 
 #[derive(Args, Debug)]
@@ -95,6 +98,34 @@ pub struct CompletionArgs {
     /// Shell to generate completions for
     #[arg(value_enum)]
     pub shell: Shell,
+}
+
+#[derive(Args, Debug)]
+pub struct ThemeArgs {
+    #[command(subcommand)]
+    pub command: ThemeCommand,
+}
+
+#[derive(Subcommand, Debug)]
+pub enum ThemeCommand {
+    /// List available themes
+    List,
+
+    /// Set the default theme
+    Set(ThemeSetArgs),
+
+    /// Preview a theme
+    Preview(ThemeSetArgs),
+
+    /// Print theme paths
+    Path,
+}
+
+#[derive(Args, Debug)]
+pub struct ThemeSetArgs {
+    /// Theme name
+    #[arg(value_name = "NAME")]
+    pub name: String,
 }
 
 #[derive(ValueEnum, Clone, Debug)]

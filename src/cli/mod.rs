@@ -5,5 +5,6 @@ pub mod init;
 pub mod list;
 pub mod omaken;
 pub mod run;
+pub mod theme;
 pub mod uninstall;
 pub mod update;

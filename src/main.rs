@@ -169,6 +169,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         Some(Commands::Run(args)) => cli::run::run(scripts_dir, args)?,
         Some(Commands::Init(args)) => cli::init::run(scripts_dir, args)?,
         Some(Commands::Config) => cli::config::run(scripts_dir)?,
+        Some(Commands::Theme(args)) => cli::theme::run(scripts_dir, args)?,
         Some(Commands::Completion(args)) => generate_completions(args.shell),
         None => run_tui(scripts_dir)?,
     }
