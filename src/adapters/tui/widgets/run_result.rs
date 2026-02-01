@@ -5,6 +5,7 @@ use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
 use ratatui::Frame;
 
 use super::super::app::{App, ExecutionStatus};
+use super::common::status_label_and_style;
 use crate::history;
 
 pub(crate) fn render_run_result(frame: &mut Frame, area: Rect, app: &mut App) {
@@ -69,15 +70,4 @@ fn render_lines(app: &App) -> Vec<Line<'static>> {
         lines.extend(output.lines().map(|line| Line::from(line.to_string())));
     }
     lines
-}
-
-fn status_label_and_style(status: &ExecutionStatus) -> (String, Style) {
-    match status {
-        ExecutionStatus::Success => ("OK".to_string(), Style::default().fg(Color::Green)),
-        ExecutionStatus::Failed(code) => match code {
-            Some(code) => (format!("FAIL ({})", code), Style::default().fg(Color::Red)),
-            None => ("FAIL".to_string(), Style::default().fg(Color::Red)),
-        },
-        ExecutionStatus::Error => ("ERROR".to_string(), Style::default().fg(Color::Yellow)),
-    }
 }

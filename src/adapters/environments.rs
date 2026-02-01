@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use crate::error::{AppResult, EnvironmentError};
 pub use crate::ports::{EnvFile, EnvironmentConfig};
 use crate::ports::{EnvPreview, EnvironmentRepository};
+use crate::util::{read_dir_or_empty, read_file_if_exists};
 
 pub struct FsEnvironmentRepository {
     envs_dir: PathBuf,
@@ -21,23 +22,15 @@ impl FsEnvironmentRepository {
 impl EnvironmentRepository for FsEnvironmentRepository {
     fn list_env_files(&self) -> AppResult<Vec<EnvFile>> {
         let mut entries = Vec::new();
-        let dir = match fs::read_dir(&self.envs_dir) {
-            Ok(dir) => dir,
-            Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
-                return Ok(entries);
-            }
-            Err(err) => {
-                return Err(EnvironmentError::ReadFailed(format!(
-                    "Failed to read environments dir {}: {}",
-                    self.envs_dir.display(),
-                    err
-                ))
-                .into());
-            }
-        };
+        let dir = read_dir_or_empty(&self.envs_dir).map_err(|err| {
+            EnvironmentError::ReadFailed(format!(
+                "Failed to read environments dir {}: {}",
+                self.envs_dir.display(),
+                err
+            ))
+        })?;
 
         for entry in dir {
-            let entry = entry.map_err(|err| EnvironmentError::ReadFailed(err.to_string()))?;
             let path = entry.path();
             if !path.is_file() {
                 continue;
@@ -173,18 +166,19 @@ pub fn load_env_defaults(path: &Path) -> Result<HashMap<String, String>, String>
 
 fn load_active_env_name(envs_dir: &Path) -> AppResult<Option<String>> {
     let active_path = envs_dir.join("active");
-    let contents = match fs::read_to_string(&active_path) {
-        Ok(contents) => contents,
-        Err(err) if err.kind() == std::io::ErrorKind::NotFound => return Ok(None),
-        Err(err) => {
-            return Err(EnvironmentError::ReadFailed(format!(
+    let contents = read_file_if_exists(&active_path)
+        .map_err(|err| {
+            EnvironmentError::ReadFailed(format!(
                 "Failed to read active environment {}: {}",
                 active_path.display(),
                 err
             ))
-            .into());
-        }
-    };
+        })?
+        .unwrap_or_default();
+
+    if contents.is_empty() {
+        return Ok(None);
+    }
 
     for line in contents.lines() {
         let trimmed = line.trim();

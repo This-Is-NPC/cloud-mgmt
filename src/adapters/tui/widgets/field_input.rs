@@ -1,4 +1,4 @@
-use ratatui::layout::{Constraint, Direction, Layout, Rect};
+use ratatui::layout::Rect;
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
@@ -6,6 +6,7 @@ use ratatui::Frame;
 
 use super::super::app::App;
 use super::super::theme;
+use super::common::standard_screen_layout;
 
 pub(crate) fn render_field_input(frame: &mut Frame, area: Rect, app: &mut App) {
     let script_name = app
@@ -50,14 +51,7 @@ pub(crate) fn render_field_input(frame: &mut Frame, area: Rect, app: &mut App) {
         .style(Style::default().fg(Color::Gray));
 
     let footer_height = 1u16;
-    let chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Length(header_height),
-            Constraint::Min(3),
-            Constraint::Length(footer_height),
-        ])
-        .split(area);
+    let chunks = standard_screen_layout(area, header_height, footer_height);
 
     frame.render_widget(header, chunks[0]);
     render_field_boxes(frame, chunks[1], app);

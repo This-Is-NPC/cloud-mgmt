@@ -1,4 +1,4 @@
-use ratatui::layout::{Constraint, Direction, Layout, Rect};
+use ratatui::layout::Rect;
 use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, List, ListItem, Paragraph, Wrap};
@@ -6,6 +6,7 @@ use ratatui::Frame;
 
 use super::super::app::App;
 use super::super::theme;
+use super::common::{horizontal_split, standard_screen_layout};
 
 fn build_preview_lines(app: &App) -> Vec<Line<'static>> {
     if let Some(err) = app.environment.preview_error.as_deref() {
@@ -72,24 +73,14 @@ pub(crate) fn render_envs(frame: &mut Frame, area: Rect, app: &mut App) {
     }
     let info_height = info_lines.len() as u16 + 2;
 
-    let chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Length(info_height),
-            Constraint::Min(3),
-            Constraint::Length(2),
-        ])
-        .split(inner);
+    let chunks = standard_screen_layout(inner, info_height, 2);
 
     let info = Paragraph::new(info_lines)
         .block(Block::default().borders(Borders::ALL).title("Status"))
         .wrap(Wrap { trim: true });
     frame.render_widget(info, chunks[0]);
 
-    let files_chunks = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
-        .split(chunks[1]);
+    let files_chunks = horizontal_split(chunks[1], 50);
 
     if app.environment.entries.is_empty() {
         let empty = Paragraph::new("No environment files found.")

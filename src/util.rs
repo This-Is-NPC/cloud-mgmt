@@ -1,5 +1,6 @@
 use std::error::Error;
 use std::fs;
+use std::io;
 use std::path::{Path, PathBuf};
 
 /// Set executable permissions on Unix systems (no-op on Windows).
@@ -20,6 +21,24 @@ pub fn set_executable_permissions(_path: &Path) -> Result<(), Box<dyn Error>> {
 /// Quote a string for use in PowerShell commands.
 pub fn ps_quote(input: &str) -> String {
     format!("'{}'", input.replace('\'', "''"))
+}
+
+/// Read a directory, returning an empty list if missing.
+pub fn read_dir_or_empty(dir: &Path) -> io::Result<Vec<fs::DirEntry>> {
+    match fs::read_dir(dir) {
+        Ok(entries) => entries.collect(),
+        Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(Vec::new()),
+        Err(err) => Err(err),
+    }
+}
+
+/// Read a file, returning None if missing.
+pub fn read_file_if_exists(path: &Path) -> io::Result<Option<String>> {
+    match fs::read_to_string(path) {
+        Ok(contents) => Ok(Some(contents)),
+        Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(None),
+        Err(err) => Err(err),
+    }
 }
 
 /// RAII guard that removes a temporary directory when dropped.

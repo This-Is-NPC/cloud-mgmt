@@ -7,6 +7,7 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
+use crate::util::read_dir_or_empty;
 pub struct FsWorkspaceRepository {
     root: PathBuf,
 }
@@ -20,18 +21,9 @@ impl FsWorkspaceRepository {
 impl ScriptRepository for FsWorkspaceRepository {
     fn list_entries(&self, dir: &Path) -> io::Result<Vec<WorkspaceEntry>> {
         let mut entries_out = Vec::new();
-        let entries = match fs::read_dir(dir) {
-            Ok(entries) => entries,
-            Err(err) => {
-                if err.kind() == io::ErrorKind::NotFound {
-                    return Ok(entries_out);
-                }
-                return Err(err);
-            }
-        };
+        let entries = read_dir_or_empty(dir)?;
 
         for entry in entries {
-            let entry = entry?;
             let path = entry.path();
             if path.is_dir() {
                 if should_skip_dir(&path) {
@@ -83,18 +75,9 @@ impl ScriptRepository for FsWorkspaceRepository {
 }
 
 fn collect_scripts(dir: &Path, scripts: &mut Vec<PathBuf>) -> io::Result<()> {
-    let entries = match fs::read_dir(dir) {
-        Ok(entries) => entries,
-        Err(err) => {
-            if err.kind() == io::ErrorKind::NotFound {
-                return Ok(());
-            }
-            return Err(err);
-        }
-    };
+    let entries = read_dir_or_empty(dir)?;
 
     for entry in entries {
-        let entry = entry?;
         let path = entry.path();
         if path.is_dir() {
             if should_skip_dir(&path) {

@@ -1,4 +1,4 @@
-use ratatui::layout::{Constraint, Direction, Layout, Rect};
+use ratatui::layout::Rect;
 use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, List, ListItem, Paragraph, Wrap};
@@ -6,6 +6,7 @@ use ratatui::Frame;
 
 use super::super::app::{App, SchemaFieldPreview, SchemaPreview};
 use super::super::theme;
+use super::common::{horizontal_split, standard_screen_layout};
 use super::schema;
 use crate::search_index::{SearchDetails, SearchResult, SearchStatus};
 
@@ -14,14 +15,7 @@ pub(crate) fn render_search(frame: &mut Frame, area: Rect, app: &mut App) {
     let inner = outer.inner(area);
     frame.render_widget(outer, area);
 
-    let chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Length(3),
-            Constraint::Min(3),
-            Constraint::Length(2),
-        ])
-        .split(inner);
+    let chunks = standard_screen_layout(inner, 3, 2);
 
     render_search_input(frame, chunks[0], app);
     render_search_body(frame, chunks[1], app);
@@ -65,10 +59,7 @@ fn render_search_body(frame: &mut Frame, area: Rect, app: &mut App) {
         return;
     }
 
-    let body_chunks = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
-        .split(area);
+    let body_chunks = horizontal_split(area, 50);
 
     render_search_results(frame, body_chunks[0], app);
     render_search_schema(frame, body_chunks[1], app);

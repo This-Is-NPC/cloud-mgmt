@@ -6,6 +6,7 @@ use ratatui::Frame;
 
 use super::super::app::{App, ExecutionStatus, HistoryFocus};
 use super::super::theme;
+use super::common::status_label_and_style;
 use crate::history;
 
 pub(crate) fn render_history(frame: &mut Frame, area: Rect, app: &mut App) {
@@ -137,17 +138,6 @@ fn render_history_output(frame: &mut Frame, area: Rect, app: &mut App) {
         .wrap(Wrap { trim: false })
         .scroll((app.run_output_scroll, 0));
     frame.render_widget(output, area);
-}
-
-fn status_label_and_style(status: &ExecutionStatus) -> (String, Style) {
-    match status {
-        ExecutionStatus::Success => ("OK".to_string(), Style::default().fg(Color::Green)),
-        ExecutionStatus::Failed(code) => match code {
-            Some(code) => (format!("FAIL ({})", code), Style::default().fg(Color::Red)),
-            None => ("FAIL".to_string(), Style::default().fg(Color::Red)),
-        },
-        ExecutionStatus::Error => ("ERROR".to_string(), Style::default().fg(Color::Yellow)),
-    }
 }
 
 const HISTORY_STATUS_WIDTH: u16 = 10;
