@@ -1,7 +1,11 @@
+mod environment;
+
 use crate::domain::Schema;
 use crate::error::AppResult;
 use std::io;
 use std::path::{Path, PathBuf};
+
+pub use environment::{EnvFile, EnvPreview, EnvironmentConfig, EnvironmentRepository};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WorkspaceEntryKind {

@@ -1,3 +1,5 @@
+mod environment;
+
 use crate::domain::Schema;
 use crate::error::AppResult;
 use crate::ports::{ScriptRepository, ScriptRunOutput, ScriptRunner, WorkspaceEntry};
@@ -8,6 +10,9 @@ pub struct ScriptService {
     repo: Box<dyn ScriptRepository>,
     runner: Box<dyn ScriptRunner>,
 }
+
+#[allow(unused_imports)]
+pub use environment::EnvironmentService;
 
 impl ScriptService {
     pub fn new(repo: Box<dyn ScriptRepository>, runner: Box<dyn ScriptRunner>) -> Self {
