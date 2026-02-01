@@ -1,94 +1,22 @@
 use crate::adapters::system_checks::ensure_git_installed;
+use crate::cli::args::OmakenInstallArgs;
 use crate::workspace::Workspace;
 use std::error::Error;
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
 
-pub struct OmakenListOptions {
-    pub workspace_root: PathBuf,
-}
-
-pub struct OmakenInstallOptions {
-    pub workspace_root: PathBuf,
-    pub url: String,
-    pub name: Option<String>,
-}
-
-pub fn print_list_help() {
-    println!(
-        "Usage: omakure list\n\n\
-Notes:\n\
-  Lists installed Omaken flavors in .omaken.\n\n\
-Environment:\n\
-  OMAKURE_SCRIPTS_DIR       Workspace root override"
-    );
-}
-
-pub fn print_install_help() {
-    println!(
-        "Usage: omakure install <git-url> [--name <name>]\n\n\
-Notes:\n\
-  Installs a flavor into .omaken from a Git repository.\n\n\
-Environment:\n\
-  OMAKURE_SCRIPTS_DIR       Workspace root override"
-    );
-}
-
-pub fn parse_list_args(
-    args: &[String],
-    workspace_root: PathBuf,
-) -> Result<OmakenListOptions, Box<dyn Error>> {
-    if !args.is_empty() {
-        return Err("list does not accept arguments".into());
-    }
-    Ok(OmakenListOptions { workspace_root })
-}
-
-pub fn parse_install_args(
-    args: &[String],
-    workspace_root: PathBuf,
-) -> Result<OmakenInstallOptions, Box<dyn Error>> {
-    if args.is_empty() {
-        return Err("Missing git URL. Use `omakure install <git-url>`.".into());
-    }
-
-    let mut url = None;
-    let mut name = None;
-    let mut i = 0;
-    while i < args.len() {
-        match args[i].as_str() {
-            "--name" => {
-                let value = args.get(i + 1).ok_or("Missing value for --name")?;
-                name = Some(value.to_string());
-                i += 2;
-            }
-            value if url.is_none() => {
-                url = Some(value.to_string());
-                i += 1;
-            }
-            unknown => {
-                return Err(format!("Unknown install arg: {}", unknown).into());
-            }
-        }
-    }
-
-    let url = url.ok_or("Missing git URL. Use `omakure install <git-url>`.")?;
-    Ok(OmakenInstallOptions {
-        workspace_root,
-        url,
-        name,
-    })
-}
-
-pub fn run_list(options: OmakenListOptions) -> Result<(), Box<dyn Error>> {
-    let workspace = Workspace::new(options.workspace_root);
+pub fn run_list(workspace_root: PathBuf) -> Result<(), Box<dyn Error>> {
+    let workspace = Workspace::new(workspace_root);
     workspace.ensure_layout()?;
     list_omaken(&workspace)
 }
 
-pub fn run_install(options: OmakenInstallOptions) -> Result<(), Box<dyn Error>> {
-    let workspace = Workspace::new(options.workspace_root);
+pub fn run_install(
+    workspace_root: PathBuf,
+    options: OmakenInstallArgs,
+) -> Result<(), Box<dyn Error>> {
+    let workspace = Workspace::new(workspace_root);
     workspace.ensure_layout()?;
     install_omaken(&workspace, &options.url, options.name.as_deref())
 }

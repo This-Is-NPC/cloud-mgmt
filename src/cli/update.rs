@@ -1,3 +1,4 @@
+use crate::cli::args::UpdateArgs;
 use crate::util::{ps_quote, set_executable_permissions, TempDirGuard};
 use serde_json::Value;
 use std::env;
@@ -7,68 +8,16 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use super::ENV_HELP_WITH_REPO;
-
 const DEFAULT_REPO: &str = "This-Is-NPC/omakure";
 
-pub struct UpdateOptions {
-    pub repo: String,
-    pub version: Option<String>,
-    pub scripts_dir: PathBuf,
-}
-
-pub fn print_help() {
-    println!(
-        "Usage: omakure update [--repo owner/name] [--version vX.Y.Z]\n\n\
-Options:\n\
-  --repo     GitHub repository (default: {DEFAULT_REPO})\n\
-  --version  Release tag (defaults to latest)\n\n\
-{ENV_HELP_WITH_REPO}"
-    );
-}
-
-pub fn parse_args(args: &[String], scripts_dir: PathBuf) -> Result<UpdateOptions, Box<dyn Error>> {
-    let repo = env::var("OMAKURE_REPO")
-        .or_else(|_| env::var("OVERTURE_REPO"))
-        .or_else(|_| env::var("CLOUD_MGMT_REPO"))
-        .or_else(|_| env::var("REPO"))
-        .unwrap_or_else(|_| DEFAULT_REPO.to_string());
-    let mut opts = UpdateOptions {
-        repo,
-        version: env::var("VERSION").ok(),
-        scripts_dir,
-    };
-
-    let mut i = 0;
-    while i < args.len() {
-        match args[i].as_str() {
-            "--repo" => {
-                let value = args.get(i + 1).ok_or("Missing value for --repo")?;
-                opts.repo = value.to_string();
-                i += 2;
-            }
-            "--version" => {
-                let value = args.get(i + 1).ok_or("Missing value for --version")?;
-                opts.version = Some(value.to_string());
-                i += 2;
-            }
-            unknown => {
-                return Err(format!("Unknown update arg: {}", unknown).into());
-            }
-        }
-    }
-
-    Ok(opts)
-}
-
-pub fn run(options: UpdateOptions) -> Result<(), Box<dyn Error>> {
-    let repo = options.repo;
-    let version = match options.version {
+pub fn run(scripts_dir: PathBuf, args: UpdateArgs) -> Result<(), Box<dyn Error>> {
+    let repo = resolve_repo(args.repo);
+    let version = match resolve_version(args.version) {
         Some(version) => normalize_version_tag(&version),
         None => fetch_latest_version(&repo)?,
     };
 
-    fs::create_dir_all(&options.scripts_dir)?;
+    fs::create_dir_all(&scripts_dir)?;
 
     let temp_dir = env::temp_dir().join(format!("omakure-update-{}", std::process::id()));
     fs::create_dir_all(&temp_dir)?;
@@ -103,11 +52,23 @@ pub fn run(options: UpdateOptions) -> Result<(), Box<dyn Error>> {
         println!("omakure already on {}", version);
     }
 
-    if let Err(err) = sync_repo_scripts(&repo, &version, &options.scripts_dir, &temp_dir) {
+    if let Err(err) = sync_repo_scripts(&repo, &version, &scripts_dir, &temp_dir) {
         eprintln!("Warning: failed to sync scripts: {}", err);
     }
 
     Ok(())
+}
+
+fn resolve_repo(repo: Option<String>) -> String {
+    repo.or_else(|| env::var("OMAKURE_REPO").ok())
+        .or_else(|| env::var("OVERTURE_REPO").ok())
+        .or_else(|| env::var("CLOUD_MGMT_REPO").ok())
+        .or_else(|| env::var("REPO").ok())
+        .unwrap_or_else(|| DEFAULT_REPO.to_string())
+}
+
+fn resolve_version(version: Option<String>) -> Option<String> {
+    version.or_else(|| env::var("VERSION").ok())
 }
 
 fn normalize_version_tag(version: &str) -> String {

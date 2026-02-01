@@ -15,6 +15,8 @@ mod workspace;
 use adapters::script_runner::MultiScriptRunner;
 use adapters::tui;
 use adapters::workspace_repository::FsWorkspaceRepository;
+use clap::Parser;
+use cli::args::{Cli, Commands, Shell};
 use std::env;
 use std::error::Error;
 use std::path::PathBuf;
@@ -153,139 +155,28 @@ fn scripts_dir() -> PathBuf {
     default_dir
 }
 
-fn print_help() {
-    println!(
-        "Usage: omakure [command]\n\n\
-Commands:\n\
-  update      Update omakure from GitHub Releases\n\
-  uninstall   Remove the omakure binary\n\
-  doctor      Check runtime dependencies and workspace\n\
-  check       Alias for doctor\n\
-  list        List Omaken flavors\n\
-  install     Install an Omaken flavor\n\
-  scripts     List available scripts\n\
-  run         Run a script without the TUI\n\
-  init        Create a new script template\n\
-  config      Show resolved paths and env\n\
-  env         Alias for config\n\
-  completion  Generate shell completion\n\
-\n\
-Options:\n\
-  -h, --help     Show this help\n\
-  -V, --version  Show version"
-    );
-}
-
 fn main() -> Result<(), Box<dyn Error>> {
-    let mut args = env::args().skip(1);
-    let scripts_dir = scripts_dir();
+    let cli = Cli::parse();
+    let scripts_dir = cli.scripts_dir.unwrap_or_else(scripts_dir);
 
-    if let Some(command) = args.next() {
-        let remaining: Vec<String> = args.collect();
-
-        match command.as_str() {
-            "update" => {
-                if cli::wants_help(&remaining) {
-                    cli::update::print_help();
-                    return Ok(());
-                }
-                let options = cli::update::parse_args(&remaining, scripts_dir)?;
-                cli::update::run(options)?;
-                return Ok(());
-            }
-            "uninstall" => {
-                if cli::wants_help(&remaining) {
-                    cli::uninstall::print_help();
-                    return Ok(());
-                }
-                let options = cli::uninstall::parse_args(&remaining, scripts_dir)?;
-                cli::uninstall::run(options)?;
-                return Ok(());
-            }
-            "doctor" | "check" => {
-                if cli::wants_help(&remaining) {
-                    cli::doctor::print_help();
-                    return Ok(());
-                }
-                let options = cli::doctor::parse_args(&remaining, scripts_dir)?;
-                cli::doctor::run(options)?;
-                return Ok(());
-            }
-            "list" => {
-                if cli::wants_help(&remaining) {
-                    cli::omaken::print_list_help();
-                    return Ok(());
-                }
-                let options = cli::omaken::parse_list_args(&remaining, scripts_dir)?;
-                cli::omaken::run_list(options)?;
-                return Ok(());
-            }
-            "install" => {
-                if cli::wants_help(&remaining) {
-                    cli::omaken::print_install_help();
-                    return Ok(());
-                }
-                let options = cli::omaken::parse_install_args(&remaining, scripts_dir)?;
-                cli::omaken::run_install(options)?;
-                return Ok(());
-            }
-            "scripts" => {
-                if cli::wants_help(&remaining) {
-                    cli::list::print_help();
-                    return Ok(());
-                }
-                let options = cli::list::parse_args(&remaining, scripts_dir)?;
-                cli::list::run(options)?;
-                return Ok(());
-            }
-            "run" => {
-                if cli::run::wants_help(&remaining) {
-                    cli::run::print_help();
-                    return Ok(());
-                }
-                let options = cli::run::parse_args(&remaining, scripts_dir)?;
-                cli::run::run(options)?;
-                return Ok(());
-            }
-            "init" => {
-                if cli::wants_help(&remaining) {
-                    cli::init::print_help();
-                    return Ok(());
-                }
-                let options = cli::init::parse_args(&remaining, scripts_dir)?;
-                cli::init::run(options)?;
-                return Ok(());
-            }
-            "config" | "env" => {
-                if cli::wants_help(&remaining) {
-                    cli::config::print_help();
-                    return Ok(());
-                }
-                let options = cli::config::parse_args(&remaining, scripts_dir)?;
-                cli::config::run(options)?;
-                return Ok(());
-            }
-            "completion" => {
-                if cli::wants_help(&remaining) {
-                    cli::completion::print_help();
-                    return Ok(());
-                }
-                let options = cli::completion::parse_args(&remaining)?;
-                cli::completion::run(options)?;
-                return Ok(());
-            }
-            "help" | "-h" | "--help" => {
-                print_help();
-                return Ok(());
-            }
-            "version" | "-V" | "--version" => {
-                println!("omakure {}", env!("CARGO_PKG_VERSION"));
-                return Ok(());
-            }
-            _ => {}
-        }
+    match cli.command {
+        Some(Commands::Update(args)) => cli::update::run(scripts_dir, args)?,
+        Some(Commands::Uninstall(args)) => cli::uninstall::run(scripts_dir, args)?,
+        Some(Commands::Doctor) => cli::doctor::run(scripts_dir)?,
+        Some(Commands::List) => cli::omaken::run_list(scripts_dir)?,
+        Some(Commands::Install(args)) => cli::omaken::run_install(scripts_dir, args)?,
+        Some(Commands::Scripts) => cli::list::run(scripts_dir)?,
+        Some(Commands::Run(args)) => cli::run::run(scripts_dir, args)?,
+        Some(Commands::Init(args)) => cli::init::run(scripts_dir, args)?,
+        Some(Commands::Config) => cli::config::run(scripts_dir)?,
+        Some(Commands::Completion(args)) => generate_completions(args.shell),
+        None => run_tui(scripts_dir)?,
     }
 
+    Ok(())
+}
+
+fn run_tui(scripts_dir: PathBuf) -> Result<(), Box<dyn Error>> {
     let workspace = Workspace::new(scripts_dir.clone());
     workspace.ensure_layout()?;
 
@@ -299,4 +190,19 @@ fn main() -> Result<(), Box<dyn Error>> {
     app_result?;
 
     Ok(())
+}
+
+fn generate_completions(shell: Shell) {
+    use clap::CommandFactory;
+    use clap_complete::{generate, Shell as ClapShell};
+
+    let mut cmd = Cli::command();
+    let shell = match shell {
+        Shell::Bash => ClapShell::Bash,
+        Shell::Zsh => ClapShell::Zsh,
+        Shell::Fish => ClapShell::Fish,
+        Shell::PowerShell => ClapShell::PowerShell,
+    };
+
+    generate(shell, &mut cmd, "omakure", &mut std::io::stdout());
 }

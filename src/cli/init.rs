@@ -1,3 +1,4 @@
+use crate::cli::args::InitArgs;
 use crate::runtime::{script_extensions, script_kind, ScriptKind};
 use crate::util::set_executable_permissions;
 use crate::workspace::Workspace;
@@ -5,62 +6,18 @@ use std::error::Error;
 use std::fs;
 use std::path::{Component, Path, PathBuf};
 
-use super::ENV_HELP;
-
-pub struct InitOptions {
-    pub name: String,
-    pub scripts_dir: PathBuf,
-}
-
-pub fn print_help() {
-    println!(
-        "Usage: omakure init <script-path>\n\n\
-Examples:\n\
-  omakure init rg-list-all\n\
-  omakure init tools/cleanup.py\n\n\
-Notes:\n\
-  Script paths are relative to the workspace root.\n\
-  Extensions supported: .bash, .sh, .ps1, .py\n\n\
-{ENV_HELP}"
-    );
-}
-
-pub fn parse_args(args: &[String], scripts_dir: PathBuf) -> Result<InitOptions, Box<dyn Error>> {
-    if args.is_empty() {
-        return Err("Missing script name. Use `omakure init <script-name>`.".into());
-    }
-
-    let mut name = None;
-    let mut i = 0;
-    while i < args.len() {
-        match args[i].as_str() {
-            "--name" => {
-                let value = args.get(i + 1).ok_or("Missing value for --name")?;
-                name = Some(value.to_string());
-                i += 2;
-            }
-            value if name.is_none() => {
-                name = Some(value.to_string());
-                i += 1;
-            }
-            unknown => {
-                return Err(format!("Unknown init arg: {}", unknown).into());
-            }
-        }
-    }
-
-    let name = name.ok_or("Missing script name")?;
-    Ok(InitOptions { name, scripts_dir })
-}
-
-pub fn run(options: InitOptions) -> Result<(), Box<dyn Error>> {
-    let name = options.name.trim();
+pub fn run(scripts_dir: PathBuf, options: InitArgs) -> Result<(), Box<dyn Error>> {
+    let name = options
+        .name
+        .or(options.script)
+        .ok_or_else(|| "Missing script name. Use `omakure init <script-name>`.".to_string())?;
+    let name = name.trim();
     if name.is_empty() {
         return Err("Script name cannot be empty".into());
     }
     let relative_path = ensure_script_path(name)?;
 
-    let workspace = Workspace::new(options.scripts_dir);
+    let workspace = Workspace::new(scripts_dir);
     workspace.ensure_layout()?;
     let script_path = workspace.root().join(&relative_path);
     if script_path.exists() {

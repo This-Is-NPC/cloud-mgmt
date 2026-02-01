@@ -1,3 +1,4 @@
+use crate::cli::args::UninstallArgs;
 use crate::util::ps_quote;
 use std::env;
 use std::error::Error;
@@ -9,48 +10,7 @@ use winreg::enums::HKEY_CURRENT_USER;
 #[cfg(windows)]
 use winreg::RegKey;
 
-use super::ENV_HELP;
-
-pub struct UninstallOptions {
-    pub scripts_dir: PathBuf,
-    pub remove_scripts: bool,
-}
-
-pub fn print_help() {
-    println!(
-        "Usage: omakure uninstall [--scripts]\n\n\
-Options:\n\
-  --scripts   Remove the scripts directory as well\n\n\
-{ENV_HELP}"
-    );
-}
-
-pub fn parse_args(
-    args: &[String],
-    scripts_dir: PathBuf,
-) -> Result<UninstallOptions, Box<dyn Error>> {
-    let mut options = UninstallOptions {
-        scripts_dir,
-        remove_scripts: false,
-    };
-
-    let mut i = 0;
-    while i < args.len() {
-        match args[i].as_str() {
-            "--scripts" => {
-                options.remove_scripts = true;
-                i += 1;
-            }
-            unknown => {
-                return Err(format!("Unknown uninstall arg: {}", unknown).into());
-            }
-        }
-    }
-
-    Ok(options)
-}
-
-pub fn run(options: UninstallOptions) -> Result<(), Box<dyn Error>> {
+pub fn run(scripts_dir: PathBuf, options: UninstallArgs) -> Result<(), Box<dyn Error>> {
     let exe = env::current_exe()?;
 
     if cfg!(windows) {
@@ -59,15 +19,12 @@ pub fn run(options: UninstallOptions) -> Result<(), Box<dyn Error>> {
         uninstall_unix(&exe)?;
     }
 
-    if options.remove_scripts {
-        if options.scripts_dir.exists() {
-            std::fs::remove_dir_all(&options.scripts_dir)?;
-            println!("Removed scripts folder: {}", options.scripts_dir.display());
+    if options.scripts {
+        if scripts_dir.exists() {
+            std::fs::remove_dir_all(&scripts_dir)?;
+            println!("Removed scripts folder: {}", scripts_dir.display());
         } else {
-            println!(
-                "Scripts folder not found: {}",
-                options.scripts_dir.display()
-            );
+            println!("Scripts folder not found: {}", scripts_dir.display());
         }
     }
 
