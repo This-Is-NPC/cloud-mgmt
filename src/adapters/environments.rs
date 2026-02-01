@@ -17,6 +17,17 @@ impl FsEnvironmentRepository {
             envs_dir: envs_dir.into(),
         }
     }
+
+    fn read_env_defaults(&self, path: &Path) -> AppResult<HashMap<String, String>> {
+        let contents = fs::read_to_string(path).map_err(|err| {
+            EnvironmentError::ReadFailed(format!(
+                "Failed to read environment file {}: {}",
+                path.display(),
+                err
+            ))
+        })?;
+        Ok(parse_env_defaults(&contents))
+    }
 }
 
 impl EnvironmentRepository for FsEnvironmentRepository {
@@ -59,7 +70,7 @@ impl EnvironmentRepository for FsEnvironmentRepository {
                 }
                 .into());
             }
-            self.load_env_defaults(&path)?
+            self.read_env_defaults(&path)?
         } else {
             HashMap::new()
         };
@@ -124,44 +135,6 @@ impl EnvironmentRepository for FsEnvironmentRepository {
         })?;
         Ok(parse_env_preview(&contents))
     }
-
-    fn load_env_defaults(&self, path: &Path) -> AppResult<HashMap<String, String>> {
-        let contents = fs::read_to_string(path).map_err(|err| {
-            EnvironmentError::ReadFailed(format!(
-                "Failed to read environment file {}: {}",
-                path.display(),
-                err
-            ))
-        })?;
-        Ok(parse_env_defaults(&contents))
-    }
-}
-
-pub fn load_env_preview(path: &Path) -> Result<Vec<(String, String)>, String> {
-    let repo = FsEnvironmentRepository::new(path.parent().unwrap_or(Path::new(".")));
-    repo.load_env_preview(path).map_err(|err| err.to_string())
-}
-
-pub fn list_env_files(envs_dir: &Path) -> Result<Vec<EnvFile>, String> {
-    let repo = FsEnvironmentRepository::new(envs_dir);
-    repo.list_env_files().map_err(|err| err.to_string())
-}
-
-pub fn load_environment_config(envs_dir: &Path) -> Result<EnvironmentConfig, String> {
-    let repo = FsEnvironmentRepository::new(envs_dir);
-    repo.load_environment_config()
-        .map_err(|err| err.to_string())
-}
-
-pub fn set_active_env(envs_dir: &Path, name: Option<&str>) -> Result<(), String> {
-    let repo = FsEnvironmentRepository::new(envs_dir);
-    repo.set_active_env(name).map_err(|err| err.to_string())
-}
-
-#[allow(dead_code)]
-pub fn load_env_defaults(path: &Path) -> Result<HashMap<String, String>, String> {
-    let repo = FsEnvironmentRepository::new(path.parent().unwrap_or(Path::new(".")));
-    repo.load_env_defaults(path).map_err(|err| err.to_string())
 }
 
 fn load_active_env_name(envs_dir: &Path) -> AppResult<Option<String>> {

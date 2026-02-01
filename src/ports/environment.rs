@@ -22,5 +22,4 @@ pub trait EnvironmentRepository {
     fn load_environment_config(&self) -> AppResult<EnvironmentConfig>;
     fn set_active_env(&self, name: Option<&str>) -> AppResult<()>;
     fn load_env_preview(&self, path: &Path) -> AppResult<EnvPreview>;
-    fn load_env_defaults(&self, path: &Path) -> AppResult<HashMap<String, String>>;
 }

@@ -1,10 +1,10 @@
-use crate::adapters::environments;
+use crate::adapters::environments::FsEnvironmentRepository;
 use crate::domain::Schema;
 use crate::history::HistoryEntry;
 use crate::lua_widget::{self, WidgetData};
 use crate::ports::{WorkspaceEntry, WorkspaceEntryKind};
 use crate::search_index::SearchIndex;
-use crate::use_cases::ScriptService;
+use crate::use_cases::{EnvironmentService, ScriptService};
 use crate::workspace::Workspace;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::{self, TryRecvError};
@@ -212,16 +212,18 @@ impl<'a> App<'a> {
         let name = self.environment.entries[self.environment.selection]
             .name
             .clone();
-        match environments::set_active_env(self.workspace.envs_dir(), Some(&name)) {
+        let service = self.environment_service();
+        match service.set_active_env(Some(&name)) {
             Ok(()) => self.load_env_config(),
-            Err(err) => self.environment.error = Some(err),
+            Err(err) => self.environment.error = Some(err.to_string()),
         }
     }
 
     pub(crate) fn deactivate_env(&mut self) {
-        match environments::set_active_env(self.workspace.envs_dir(), None) {
+        let service = self.environment_service();
+        match service.set_active_env(None) {
             Ok(()) => self.load_env_config(),
-            Err(err) => self.environment.error = Some(err),
+            Err(err) => self.environment.error = Some(err.to_string()),
         }
     }
 
@@ -547,23 +549,28 @@ impl<'a> App<'a> {
         }
     }
 
+    fn environment_service(&self) -> EnvironmentService {
+        let repo = FsEnvironmentRepository::new(self.workspace.envs_dir());
+        EnvironmentService::new(Box::new(repo))
+    }
+
     fn load_env_config(&mut self) {
-        let envs_dir = self.workspace.envs_dir();
         let mut env_error = None;
 
-        let env_config = match environments::load_environment_config(envs_dir) {
+        let service = self.environment_service();
+        let env_config = match service.load_environment_config() {
             Ok(config) => Some(config),
             Err(err) => {
-                env_error = Some(err);
+                env_error = Some(err.to_string());
                 None
             }
         };
 
-        let env_entries = match environments::list_env_files(envs_dir) {
+        let env_entries = match service.list_env_files() {
             Ok(entries) => entries,
             Err(err) => {
                 if env_error.is_none() {
-                    env_error = Some(err);
+                    env_error = Some(err.to_string());
                 }
                 Vec::new()
             }
@@ -620,7 +627,8 @@ impl<'a> App<'a> {
             .unwrap_or_else(|| self.workspace.envs_dir().to_path_buf());
         let env_path = envs_dir.join(&entry.name);
 
-        match environments::load_env_preview(&env_path) {
+        let service = self.environment_service();
+        match service.load_env_preview(&env_path) {
             Ok(entries) => {
                 let mut lines = Vec::new();
                 for (key, value) in entries {
@@ -652,7 +660,7 @@ impl<'a> App<'a> {
             }
             Err(err) => {
                 self.environment.preview_lines = Vec::new();
-                self.environment.preview_error = Some(err);
+                self.environment.preview_error = Some(err.to_string());
             }
         }
     }

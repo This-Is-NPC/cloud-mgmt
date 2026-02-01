@@ -11,7 +11,6 @@ pub struct ScriptService {
     runner: Box<dyn ScriptRunner>,
 }
 
-#[allow(unused_imports)]
 pub use environment::EnvironmentService;
 
 impl ScriptService {

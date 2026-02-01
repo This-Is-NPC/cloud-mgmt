@@ -16,9 +16,6 @@ pub enum AppError {
     #[error("Environment error: {0}")]
     Environment(#[from] EnvironmentError),
 
-    #[error("Configuration error: {0}")]
-    Config(String),
-
     #[error("{0}")]
     General(String),
 }
@@ -57,14 +54,8 @@ pub enum SchemaError {
 /// Errors related to script execution.
 #[derive(Debug, Error)]
 pub enum ScriptError {
-    #[error("Script not found: {path}")]
-    NotFound { path: String },
-
     #[error("Unsupported script type")]
     UnsupportedType,
-
-    #[error("Execution failed: {message}")]
-    ExecutionFailed { message: String },
 
     #[error("{name} not found in PATH. {hint}")]
     DependencyMissing { name: String, hint: String },
@@ -78,9 +69,6 @@ pub enum ScriptError {
 pub enum EnvironmentError {
     #[error("Environment not found: {name}")]
     NotFound { name: String },
-
-    #[error("Invalid environment file format: {0}")]
-    InvalidFormat(String),
 
     #[error("Failed to read environment: {0}")]
     ReadFailed(String),

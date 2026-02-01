@@ -3,7 +3,6 @@ use serde::Deserialize;
 /// Schema definition for a script.
 #[derive(Debug, Deserialize, Clone)]
 #[serde(rename_all = "PascalCase")]
-#[allow(dead_code)]
 pub struct Schema {
     pub name: String,
     pub description: Option<String>,
@@ -31,7 +30,6 @@ pub struct Field {
 /// Script output field definition.
 #[derive(Debug, Deserialize, Clone)]
 #[serde(rename_all = "PascalCase")]
-#[allow(dead_code)]
 pub struct OutputField {
     pub name: String,
     #[serde(rename = "Type")]
@@ -41,7 +39,6 @@ pub struct OutputField {
 /// Optional queue specification for batch execution.
 #[derive(Debug, Deserialize, Clone)]
 #[serde(rename_all = "PascalCase")]
-#[allow(dead_code)]
 pub struct QueueSpec {
     pub matrix: Option<MatrixSpec>,
     pub cases: Option<Vec<QueueCase>>,
@@ -50,7 +47,6 @@ pub struct QueueSpec {
 /// Matrix specification for batch execution.
 #[derive(Debug, Deserialize, Clone)]
 #[serde(rename_all = "PascalCase")]
-#[allow(dead_code)]
 pub struct MatrixSpec {
     pub values: Vec<MatrixValue>,
 }
@@ -58,7 +54,6 @@ pub struct MatrixSpec {
 /// Matrix value.
 #[derive(Debug, Deserialize, Clone)]
 #[serde(rename_all = "PascalCase")]
-#[allow(dead_code)]
 pub struct MatrixValue {
     pub name: String,
     pub values: Vec<String>,
@@ -67,7 +62,6 @@ pub struct MatrixValue {
 /// Queue case entry.
 #[derive(Debug, Deserialize, Clone)]
 #[serde(rename_all = "PascalCase")]
-#[allow(dead_code)]
 pub struct QueueCase {
     pub name: Option<String>,
     pub values: Vec<CaseValue>,
@@ -76,7 +70,6 @@ pub struct QueueCase {
 /// Queue case value.
 #[derive(Debug, Deserialize, Clone)]
 #[serde(rename_all = "PascalCase")]
-#[allow(dead_code)]
 pub struct CaseValue {
     pub name: String,
     pub value: String,
