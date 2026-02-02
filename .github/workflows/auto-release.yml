@@ -1,7 +1,8 @@
 name: Auto Release
 
 on:
-  push:
+  pull_request_target:
+    types: [closed]
     branches:
       - main
 
@@ -13,15 +14,18 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  release:
-    if: github.actor != 'github-actions[bot]'
+  tag:
+    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+      version: ${{ steps.version.outputs.version }}
 
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: ${{ github.ref_name }}
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
 
       - name: Determine next version
         id: version
@@ -85,7 +89,7 @@ jobs:
             exit 0
           fi
           git -c user.name="github-actions[bot]" -c user.email="github-actions[bot]@users.noreply.github.com" commit -m "Bump version to v${NEW_VERSION}"
-          git push origin "HEAD:${{ github.ref_name }}"
+          git push origin "HEAD:${{ github.event.pull_request.base.ref }}"
 
       - name: Create and push tag
         env:
@@ -93,3 +97,10 @@ jobs:
         run: |
           git tag "${NEW_TAG}"
           git push origin "${NEW_TAG}"
+
+  release:
+    needs: tag
+    uses: ./.github/workflows/release.yml
+    with:
+      tag: ${{ needs.tag.outputs.tag }}
+    secrets: inherit
